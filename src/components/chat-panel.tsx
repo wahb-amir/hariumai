@@ -168,30 +168,32 @@ export function ChatPanel() {
         <div className="max-w-3xl mx-auto">
             {messages.length <= 1 && (
                 <div className="mb-4">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3 px-2">
                         <Sparkles className="h-4 w-4" />
                         <h3 className="text-sm font-medium">Try these:</h3>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        {suggestionPrompts.map(prompt => (
-                            <Button 
-                                key={prompt} 
-                                variant="outline" 
-                                size="sm" 
-                                className="text-xs"
-                                onClick={(e) => handleSendMessage(e, prompt)}
-                                disabled={isLoading}
-                            >
-                                {prompt}
-                            </Button>
-                        ))}
-                    </div>
+                    <ScrollArea className="whitespace-nowrap -mb-4">
+                        <div className="flex gap-2 pb-4 px-2">
+                            {suggestionPrompts.map(prompt => (
+                                <Button 
+                                    key={prompt} 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="text-xs h-8 rounded-full"
+                                    onClick={(e) => handleSendMessage(e, prompt)}
+                                    disabled={isLoading}
+                                >
+                                    {prompt}
+                                </Button>
+                            ))}
+                        </div>
+                    </ScrollArea>
                 </div>
             )}
             <form onSubmit={handleSendMessage} className="relative">
                 <Avatar className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8">
-                  <AvatarFallback className="bg-primary text-primary-foreground">
-                    <Image src="/firebase-logo.svg" alt="Firebase" width={20} height={20} />
+                  <AvatarFallback className="bg-muted text-muted-foreground">
+                    N
                   </AvatarFallback>
                 </Avatar>
                 <Textarea

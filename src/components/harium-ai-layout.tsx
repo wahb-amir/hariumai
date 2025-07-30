@@ -24,7 +24,6 @@ import {
     LogOut,
     Cog,
     Menu,
-    Sparkles,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -40,7 +39,7 @@ export function HariumAiLayout() {
         <SidebarHeader>
             <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
-                    <AvatarFallback className="bg-primary text-primary-foreground"><Sparkles className="h-5 w-5" /></AvatarFallback>
+                    <AvatarFallback className="bg-primary text-primary-foreground font-bold">H</AvatarFallback>
                 </Avatar>
                 <h1 className="text-lg font-semibold">HariumAI</h1>
             </div>
@@ -66,10 +65,10 @@ export function HariumAiLayout() {
                 <SidebarGroup>
                     <SidebarGroupLabel>Accessibility</SidebarGroupLabel>
                     <SidebarMenuItem>
-                        <div className="flex items-center justify-between w-full p-2">
+                        <div className="flex items-center justify-between w-full p-2 text-sm">
                             <div className="flex items-center gap-2">
-                                <VolumeX />
-                                <span className="text-sm">Voice Responses</span>
+                                <VolumeX className="h-4 w-4" />
+                                <span>Voice Responses</span>
                             </div>
                             <Switch checked={voiceResponses} onCheckedChange={setVoiceResponses} />
                         </div>

@@ -65,7 +65,7 @@ export function ChatPanel() {
         title: "Error",
         description: "Failed to get a response from the AI.",
       });
-      const newMessages = messages.filter((msg) => msg.id !== userMessage.id);
+      const newMessages = messages.slice(0, -1);
       setMessages(newMessages);
     } finally {
       setIsLoading(false);

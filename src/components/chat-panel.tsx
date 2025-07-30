@@ -191,16 +191,11 @@ export function ChatPanel() {
                 </div>
             )}
             <form onSubmit={handleSendMessage} className="relative">
-                <Avatar className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8">
-                  <AvatarFallback className="bg-muted text-muted-foreground">
-                    N
-                  </AvatarFallback>
-                </Avatar>
                 <Textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Send a message or attach an image..."
-                    className="flex-1 resize-none rounded-full bg-secondary border-none pl-14 pr-24 py-3 min-h-0 h-12"
+                    className="flex-1 resize-none rounded-full bg-secondary border-none pl-4 pr-24 py-3 min-h-0 h-12"
                     rows={1}
                     onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {

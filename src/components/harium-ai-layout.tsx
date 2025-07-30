@@ -24,6 +24,8 @@ import {
     LogOut,
     Cog,
     Menu,
+    Sparkles,
+    Moon,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -32,6 +34,15 @@ import { ChatPanel } from "./chat-panel"
 
 export function HariumAiLayout() {
   const [voiceResponses, setVoiceResponses] = React.useState(false)
+  const [isDarkMode, setIsDarkMode] = React.useState(false)
+
+  React.useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add("dark")
+    } else {
+      document.documentElement.classList.remove("dark")
+    }
+  }, [isDarkMode])
 
   return (
     <SidebarProvider>
@@ -73,6 +84,15 @@ export function HariumAiLayout() {
                             <Switch checked={voiceResponses} onCheckedChange={setVoiceResponses} />
                         </div>
                     </SidebarMenuItem>
+                     <SidebarMenuItem>
+                        <div className="flex items-center justify-between w-full p-2 text-sm">
+                            <div className="flex items-center gap-2">
+                                <Moon className="h-4 w-4" />
+                                <span>Dark Mode</span>
+                            </div>
+                            <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} />
+                        </div>
+                    </SidebarMenuItem>
                 </SidebarGroup>
                 <SidebarSeparator />
                  <SidebarGroup>
@@ -110,15 +130,12 @@ export function HariumAiLayout() {
         <header className="p-4 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10">
              <div className="flex items-center gap-2">
                 <SidebarTrigger className="md:hidden">
-                  <Menu />
+                    <Menu />
                 </SidebarTrigger>
                 <h2 className="font-bold text-lg">Harium AI <span className="text-xs text-muted-foreground font-normal">(ha-1.4)</span></h2>
              </div>
              <div className="flex items-center gap-2">
-                <Button>Publish</Button>
-                 <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground">A</AvatarFallback>
-                </Avatar>
+                {/* Removed Publish Button and Avatar */}
              </div>
         </header>
         <main className="flex-1">

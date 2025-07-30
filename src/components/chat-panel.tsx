@@ -28,6 +28,13 @@ const suggestionPrompts = [
     "Write a poem about a rainy day"
 ]
 
+const imageGenerationTriggers = [
+    "generate an image of",
+    "create an image of",
+    "draw a picture of",
+    "show me an image of"
+];
+
 export function ChatPanel() {
   const [messages, setMessages] = useState<Message[]>([
     { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
@@ -57,8 +64,20 @@ export function ChatPanel() {
     setIsLoading(true);
 
     try {
-        if (currentInput.toLowerCase().includes("generate an image") || currentInput.toLowerCase().includes("create an image")) {
-            const result = await generateImageFromText({ prompt: currentInput });
+        const lowerCaseInput = currentInput.toLowerCase();
+        let isImageRequest = false;
+        let imagePrompt = currentInput;
+
+        for (const trigger of imageGenerationTriggers) {
+            if (lowerCaseInput.startsWith(trigger)) {
+                isImageRequest = true;
+                imagePrompt = currentInput.substring(trigger.length).trim();
+                break;
+            }
+        }
+        
+        if (isImageRequest) {
+            const result = await generateImageFromText({ prompt: imagePrompt });
             const assistantMessage: Message = { id: `asst-${Date.now()}`, role: "assistant", content: result.imageUrl, type: 'image' };
             setMessages((prev) => [...prev, assistantMessage]);
         } else {

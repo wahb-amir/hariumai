@@ -1,5 +1,5 @@
-import { HariumAiClient } from '@/components/harium-ai-client';
+import { HariumAiLayout } from '@/components/harium-ai-layout';
 
 export default function Home() {
-  return <HariumAiClient />;
+  return <HariumAiLayout />;
 }

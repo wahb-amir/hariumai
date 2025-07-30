@@ -108,10 +108,14 @@ export function ChatPanel() {
         }
     } catch (error) {
       console.error("Error in conversation:", error);
-      const lastUserMessageIndex = messages.findLastIndex(m => m.role === 'user');
-      if (lastUserMessageIndex !== -1) {
-        setMessages(prev => prev.slice(0, lastUserMessageIndex + 1));
-      }
+      setMessages((prevMessages) => {
+        const newMessages = [...prevMessages];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage && lastMessage.role === 'assistant') {
+          newMessages.pop();
+        }
+        return newMessages;
+      });
       toast({
         variant: "destructive",
         title: "Error",
@@ -241,14 +245,14 @@ export function ChatPanel() {
                         <Sparkles className="h-4 w-4" />
                         <h3 className="text-sm font-medium">Try these:</h3>
                     </div>
-                    <ScrollArea className="whitespace-nowrap -mb-4">
-                        <div className="flex gap-2 pb-4 px-2">
+                    <div className="overflow-x-auto pb-4 -mb-4">
+                        <div className="flex gap-2 whitespace-nowrap px-2">
                             {suggestionPrompts.map(prompt => (
                                 <Button 
                                     key={prompt} 
                                     variant="outline" 
                                     size="sm" 
-                                    className="text-xs h-8 rounded-full"
+                                    className="text-xs h-8 rounded-full flex-shrink-0"
                                     onClick={(e) => handleSendMessage(e, prompt)}
                                     disabled={isLoading}
                                 >
@@ -256,7 +260,7 @@ export function ChatPanel() {
                                 </Button>
                             ))}
                         </div>
-                    </ScrollArea>
+                    </div>
                 </div>
             )}
             <form onSubmit={handleSendMessage} className="relative">

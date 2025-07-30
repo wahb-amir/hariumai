@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, Sparkles } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { generateImageFromText } from "@/ai/flows/generate-image-from-text";
@@ -20,34 +20,6 @@ type Message = {
   content: string;
   type?: "text" | "image";
 };
-
-const suggestionPrompts = [
-    "How does a car engine work?",
-    "Generate an image of a majestic dragon flying over mountains",
-    "What's the meaning of life?",
-    "Write a poem about a rainy day",
-    "Explain the theory of relativity in simple terms",
-    "Create a recipe for a vegan chocolate cake",
-    "Generate an image of a futuristic city at night",
-    "What are the benefits of meditation?",
-    "Write a short story about a time-traveling historian",
-    "Translate 'Hello, how are you?' to Spanish",
-    "Generate an image of a serene forest with a waterfall",
-    "What is the capital of Australia?",
-    "Give me some tips for learning a new language",
-    "Write a song about the ocean",
-    "Generate an image of an astronaut playing guitar on the moon",
-    "Explain the difference between AI, machine learning, and deep learning",
-    "Suggest a workout routine for beginners",
-    "Write a joke about programming",
-    "Generate an image of a field of glowing flowers under a starry sky",
-    "What are some famous philosophical thought experiments?",
-    "Create a travel itinerary for a 3-day trip to Paris",
-    "Generate an image of a cute robot helping an elderly person",
-    "What is quantum computing?",
-    "Write a dialogue between a cat and a dog",
-    "Generate an image of a steampunk-style airship",
-];
 
 const imageGenerationTriggers = [
     "generate an image of",
@@ -236,32 +208,6 @@ export function ChatPanel() {
       </ScrollArea>
       <div className="border-t pt-4 bg-background">
         <div className="max-w-3xl mx-auto">
-          <div className="h-[76px]">
-            {messages.length <= 1 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3 px-2">
-                  <Sparkles className="h-4 w-4" />
-                  <h3 className="text-sm font-medium">Try these:</h3>
-                </div>
-                <div className="overflow-x-auto pb-4 -mb-4">
-                  <div className="flex gap-2 whitespace-nowrap px-2">
-                    {suggestionPrompts.map((prompt) => (
-                      <Button
-                        key={prompt}
-                        variant="outline"
-                        size="sm"
-                        className="text-xs h-8 rounded-full flex-shrink-0"
-                        onClick={(e) => handleSendMessage(e, prompt)}
-                        disabled={isLoading}
-                      >
-                        {prompt}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
             <form onSubmit={handleSendMessage} className="relative">
                 <Textarea
                     value={input}

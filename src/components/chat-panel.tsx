@@ -108,14 +108,11 @@ export function ChatPanel() {
         }
     } catch (error) {
       console.error("Error in conversation:", error);
-      setMessages((prevMessages) => {
-        const newMessages = [...prevMessages];
-        const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage && lastMessage.role === 'assistant') {
-          newMessages.pop();
-        }
-        return newMessages;
-      });
+      const userMessageIndex = messages.findIndex((msg) => msg.id === userMessage.id);
+      if (userMessageIndex === -1) {
+        setMessages((prev) => prev.slice(0, prev.length -1));
+      }
+      
       toast({
         variant: "destructive",
         title: "Error",

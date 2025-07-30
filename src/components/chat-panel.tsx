@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
+import { generateImageFromText } from "@/ai/flows/generate-image-from-text";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
@@ -17,6 +18,7 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
+  type?: "text" | "image";
 };
 
 const suggestionPrompts = [
@@ -28,7 +30,7 @@ const suggestionPrompts = [
 
 export function ChatPanel() {
   const [messages, setMessages] = useState<Message[]>([
-    { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!"}
+    { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -46,7 +48,7 @@ export function ChatPanel() {
     const currentInput = prompt || input;
     if (!currentInput.trim() || isLoading) return;
 
-    const userMessage: Message = { id: `user-${Date.now()}`, role: "user", content: currentInput };
+    const userMessage: Message = { id: `user-${Date.now()}`, role: "user", content: currentInput, type: "text" };
     setMessages((prev) => [...prev, userMessage]);
     
     if(!prompt) {
@@ -55,9 +57,15 @@ export function ChatPanel() {
     setIsLoading(true);
 
     try {
-      const result = await converseWithAi({ prompt: currentInput });
-      const assistantMessage: Message = { id: `asst-${Date.now()}`, role: "assistant", content: result.response };
-      setMessages((prev) => [...prev, assistantMessage]);
+        if (currentInput.toLowerCase().includes("generate an image") || currentInput.toLowerCase().includes("create an image")) {
+            const result = await generateImageFromText({ prompt: currentInput });
+            const assistantMessage: Message = { id: `asst-${Date.now()}`, role: "assistant", content: result.imageUrl, type: 'image' };
+            setMessages((prev) => [...prev, assistantMessage]);
+        } else {
+            const result = await converseWithAi({ prompt: currentInput });
+            const assistantMessage: Message = { id: `asst-${Date.now()}`, role: "assistant", content: result.response, type: 'text' };
+            setMessages((prev) => [...prev, assistantMessage]);
+        }
     } catch (error) {
       console.error("Error in conversation:", error);
       toast({
@@ -65,8 +73,8 @@ export function ChatPanel() {
         title: "Error",
         description: "Failed to get a response from the AI.",
       });
-      const newMessages = messages.slice(0, -1);
-      setMessages(newMessages);
+      // Rollback the user's message on error
+      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
@@ -130,11 +138,24 @@ export function ChatPanel() {
                   "max-w-[75%] rounded-lg p-3 space-y-2",
                   message.role === "user"
                     ? "bg-primary text-primary-foreground"
-                    : "bg-card" 
+                    : "bg-card",
+                  message.type === 'image' && 'p-1 bg-transparent'
                 )}
               >
-                <p className="text-sm leading-relaxed">{message.content}</p>
-                {message.role === 'assistant' && (
+                {message.type === 'image' ? (
+                   <Image
+                        src={message.content}
+                        alt="Generated image"
+                        width={512}
+                        height={512}
+                        className="rounded-lg"
+                        data-ai-hint="generated image"
+                    />
+                ) : (
+                    <p className="text-sm leading-relaxed">{message.content}</p>
+                )}
+
+                {message.role === 'assistant' && message.type === 'text' && (
                   <Button
                     variant="ghost"
                     size="icon"

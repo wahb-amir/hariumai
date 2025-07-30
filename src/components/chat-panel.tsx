@@ -25,8 +25,29 @@ const suggestionPrompts = [
     "How does a car engine work?",
     "Generate an image of a majestic dragon flying over mountains",
     "What's the meaning of life?",
-    "Write a poem about a rainy day"
-]
+    "Write a poem about a rainy day",
+    "Explain the theory of relativity in simple terms",
+    "Create a recipe for a vegan chocolate cake",
+    "Generate an image of a futuristic city at night",
+    "What are the benefits of meditation?",
+    "Write a short story about a time-traveling historian",
+    "Translate 'Hello, how are you?' to Spanish",
+    "Generate an image of a serene forest with a waterfall",
+    "What is the capital of Australia?",
+    "Give me some tips for learning a new language",
+    "Write a song about the ocean",
+    "Generate an image of an astronaut playing guitar on the moon",
+    "Explain the difference between AI, machine learning, and deep learning",
+    "Suggest a workout routine for beginners",
+    "Write a joke about programming",
+    "Generate an image of a field of glowing flowers under a starry sky",
+    "What are some famous philosophical thought experiments?",
+    "Create a travel itinerary for a 3-day trip to Paris",
+    "Generate an image of a cute robot helping an elderly person",
+    "What is quantum computing?",
+    "Write a dialogue between a cat and a dog",
+    "Generate an image of a steampunk-style airship",
+];
 
 const imageGenerationTriggers = [
     "generate an image of",
@@ -89,8 +110,6 @@ export function ChatPanel() {
         }
     } catch (error) {
       console.error("Error in conversation:", error);
-      const userMessageId = userMessage.id;
-      setMessages((prev) => prev.filter(m => m.id !== userMessageId));
       toast({
         variant: "destructive",
         title: "Error",
@@ -267,5 +286,3 @@ export function ChatPanel() {
     </div>
   );
 }
-
-    

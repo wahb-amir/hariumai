@@ -238,28 +238,28 @@ export function ChatPanel() {
         <div className="max-w-3xl mx-auto">
           <div className="h-[76px]">
             {messages.length <= 1 && (
-                <div>
-                    <div className="flex items-center gap-2 mb-3 px-2">
-                        <Sparkles className="h-4 w-4" />
-                        <h3 className="text-sm font-medium">Try these:</h3>
-                    </div>
-                    <div className="overflow-x-auto pb-4 -mb-4">
-                        <div className="flex gap-2 whitespace-nowrap px-2">
-                            {suggestionPrompts.map(prompt => (
-                                <Button 
-                                    key={prompt} 
-                                    variant="outline" 
-                                    size="sm" 
-                                    className="text-xs h-8 rounded-full flex-shrink-0"
-                                    onClick={(e) => handleSendMessage(e, prompt)}
-                                    disabled={isLoading}
-                                >
-                                    {prompt}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
+              <div>
+                <div className="flex items-center gap-2 mb-3 px-2">
+                  <Sparkles className="h-4 w-4" />
+                  <h3 className="text-sm font-medium">Try these:</h3>
                 </div>
+                <div className="overflow-x-auto pb-4 -mb-4">
+                  <div className="flex gap-2 whitespace-nowrap px-2">
+                    {suggestionPrompts.map((prompt) => (
+                      <Button
+                        key={prompt}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-8 rounded-full flex-shrink-0"
+                        onClick={(e) => handleSendMessage(e, prompt)}
+                        disabled={isLoading}
+                      >
+                        {prompt}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
             <form onSubmit={handleSendMessage} className="relative">

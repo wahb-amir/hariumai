@@ -5,14 +5,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
-import { generateImageFromText } from "@/ai/flows/generate-image-from-text";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { HariumLogo } from "./harium-logo";
+import Link from "next/link";
 
 type Message = {
   id: string;
@@ -59,19 +59,21 @@ export function ChatPanel() {
     try {
         const lowerCaseInput = currentInput.toLowerCase();
         let isImageRequest = false;
-        let imagePrompt = currentInput;
-
+        
         for (const trigger of imageGenerationTriggers) {
             if (lowerCaseInput.startsWith(trigger)) {
                 isImageRequest = true;
-                imagePrompt = currentInput.substring(trigger.length).trim();
                 break;
             }
         }
         
         if (isImageRequest) {
-            const result = await generateImageFromText({ prompt: imagePrompt });
-            const assistantMessage: Message = { id: `asst-${Date.now()}`, role: "assistant", content: result.imageUrl, type: 'image' };
+            const assistantMessage: Message = { 
+                id: `asst-${Date.now()}`, 
+                role: "assistant", 
+                content: "Visit this page to create your dedicated image:", 
+                type: 'text' 
+            };
             setMessages((prev) => [...prev, assistantMessage]);
         } else {
             const result = await converseWithAi({ prompt: currentInput });
@@ -81,8 +83,8 @@ export function ChatPanel() {
     } catch (error) {
       console.error("Error in conversation:", error);
       const userMessageIndex = messages.findIndex((msg) => msg.id === userMessage.id);
-      if (userMessageIndex === -1) {
-        setMessages((prev) => prev.slice(0, prev.length -1));
+      if (userMessageIndex !== -1) {
+         setMessages((prev) => prev.slice(0, userMessageIndex + 1));
       }
       
       toast({
@@ -169,8 +171,17 @@ export function ChatPanel() {
                 ) : (
                     <p className="text-sm leading-relaxed break-words">{message.content}</p>
                 )}
+                
+                {message.role === 'assistant' && message.content.startsWith("Visit this page") && (
+                    <Button asChild variant="outline" className="mt-2">
+                        <Link href="/generation/image">
+                            <ImageIcon className="mr-2 h-4 w-4" />
+                            Image Generation
+                        </Link>
+                    </Button>
+                )}
 
-                {message.role === 'assistant' && message.type === 'text' && (
+                {message.role === 'assistant' && message.type === 'text' && !message.content.startsWith("Visit this page") && (
                   <Button
                     variant="ghost"
                     size="icon"

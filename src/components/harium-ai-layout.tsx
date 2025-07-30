@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -25,19 +27,24 @@ import {
   Cog,
   Menu,
   Moon,
+  MessageSquare,
+  Image as ImageIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ChatPanel } from "./chat-panel";
 import { HariumLogo } from "./harium-logo";
 
-export function HariumAiLayout() {
+export function HariumAiLayout({ children }: { children?: React.ReactNode}) {
   const [voiceResponses, setVoiceResponses] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const pathname = usePathname();
 
   React.useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);
   }, [isDarkMode]);
+
+  const mainContent = children || <ChatPanel />;
 
   return (
     <SidebarProvider>
@@ -51,15 +58,25 @@ export function HariumAiLayout() {
         <SidebarContent>
           <SidebarMenu>
             <SidebarGroup>
-              <SidebarGroupLabel>Chat Options</SidebarGroupLabel>
+              <SidebarGroupLabel>Features</SidebarGroupLabel>
               <SidebarMenuItem>
-                <SidebarMenuButton isActive>
-                  <Plus />
-                  New AI Chat
-                </SidebarMenuButton>
+                 <Link href="/" className="w-full">
+                    <SidebarMenuButton isActive={pathname === '/'}>
+                      <MessageSquare />
+                      AI Chat
+                    </SidebarMenuButton>
+                 </Link>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton>
+                 <Link href="/generation/image" className="w-full">
+                    <SidebarMenuButton isActive={pathname === '/generation/image'}>
+                      <ImageIcon />
+                      Image Generation
+                    </SidebarMenuButton>
+                  </Link>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton disabled>
                   <Users />
                   Live Group Chat (Coming Soon)
                 </SidebarMenuButton>
@@ -138,7 +155,7 @@ export function HariumAiLayout() {
           <div className="flex items-center gap-2"></div>
         </header>
         <main className="flex-1 flex flex-col">
-          <ChatPanel />
+          {mainContent}
         </main>
       </SidebarInset>
     </SidebarProvider>

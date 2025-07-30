@@ -92,8 +92,6 @@ export function ChatPanel() {
         title: "Error",
         description: "Failed to get a response from the AI.",
       });
-      // Rollback the user's message on error
-      setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }

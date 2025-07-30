@@ -12,6 +12,7 @@ import {z} from 'genkit';
 
 const GenerateImageFromTextInputSchema = z.object({
   prompt: z.string().describe('The prompt to generate an image from.'),
+  originalImageUrl: z.string().optional().describe('The original image as a data URI to edit from.'),
 });
 export type GenerateImageFromTextInput = z.infer<typeof GenerateImageFromTextInputSchema>;
 
@@ -33,7 +34,9 @@ const generateImageFromTextFlow = ai.defineFlow(
   async input => {
     const {media} = await ai.generate({
       model: 'googleai/gemini-2.0-flash-preview-image-generation',
-      prompt: input.prompt,
+      prompt: input.originalImageUrl 
+        ? [{ text: input.prompt }, { media: { url: input.originalImageUrl } }]
+        : input.prompt,
       config: {
         responseModalities: ['TEXT', 'IMAGE'],
       },

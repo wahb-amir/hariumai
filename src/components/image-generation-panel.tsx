@@ -15,8 +15,10 @@ import { HariumLogo } from "./harium-logo";
 
 export function ImageGenerationPanel() {
   const [prompt, setPrompt] = useState("");
+  const [editPrompt, setEditPrompt] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const { toast } = useToast();
 
@@ -26,6 +28,7 @@ export function ImageGenerationPanel() {
 
     setIsLoading(true);
     setImageUrl(null);
+    setIsEditing(false);
 
     try {
       const result = await generateImageFromText({ prompt });
@@ -39,6 +42,29 @@ export function ImageGenerationPanel() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEditImage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editPrompt.trim() || !imageUrl || isLoading) return;
+
+    setIsLoading(true);
+
+    try {
+      const result = await generateImageFromText({ prompt: editPrompt, originalImageUrl: imageUrl });
+      setImageUrl(result.imageUrl);
+      setEditPrompt("");
+      setIsEditing(false);
+    } catch (error) {
+        console.error("Error editing image:", error);
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to edit image.",
+        });
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -70,7 +96,7 @@ export function ImageGenerationPanel() {
           disabled={isLoading}
         />
         <Button type="submit" disabled={isLoading || !prompt.trim()} className="w-full">
-          {isLoading ? (
+          {isLoading && !isEditing ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Sparkles className="mr-2 h-4 w-4" />
@@ -93,7 +119,7 @@ export function ImageGenerationPanel() {
                   className="object-cover w-full h-full transition-opacity duration-500 opacity-100"
                   data-ai-hint="generated image"
                 />
-                <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+                <Dialog open={isPreviewOpen} onOpenChange={(isOpen) => { setIsPreviewOpen(isOpen); if(!isOpen) setIsEditing(false)}}>
                   <DialogTrigger asChild>
                     <button className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
                       <Eye className="h-12 w-12 text-white" />
@@ -101,7 +127,7 @@ export function ImageGenerationPanel() {
                   </DialogTrigger>
                   <DialogContent className="max-w-3xl">
                     <DialogHeader>
-                      <DialogTitle>Image Preview</DialogTitle>
+                      <DialogTitle>{isEditing ? 'Edit Image' : 'Image Preview'}</DialogTitle>
                     </DialogHeader>
                     <div className="mt-4">
                       <Image
@@ -113,11 +139,29 @@ export function ImageGenerationPanel() {
                         data-ai-hint="generated image preview"
                       />
                     </div>
+                    {isEditing && (
+                        <form onSubmit={handleEditImage} className="mt-4 space-y-4">
+                            <Textarea
+                                value={editPrompt}
+                                onChange={(e) => setEditPrompt(e.target.value)}
+                                placeholder="Describe the changes you want to make..."
+                                className="resize-none"
+                                rows={2}
+                                disabled={isLoading}
+                            />
+                            <Button type="submit" disabled={isLoading || !editPrompt.trim()} className="w-full">
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                                Generate Edit
+                            </Button>
+                        </form>
+                    )}
                     <DialogFooter className="mt-4">
-                        <Button variant="outline" onClick={() => { /* Implement Edit functionality later */ toast({ title: "Coming Soon!", description: "Image editing will be available in a future update."})}}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit Image
-                        </Button>
+                        {!isEditing && (
+                            <Button variant="outline" onClick={() => setIsEditing(true)}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Image
+                            </Button>
+                        )}
                         <Button onClick={handleSaveImage}>
                             <Download className="mr-2 h-4 w-4" />
                             Save Image

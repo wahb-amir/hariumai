@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { generateImageFromText } from "@/ai/flows/generate-image-from-text";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Sparkles, Eye, Download, Edit } from "lucide-react";
+import { Loader2, Sparkles, Eye, Download, Edit, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { HariumLogo } from "./harium-logo";
@@ -54,6 +54,7 @@ export function ImageGenerationPanel() {
     try {
       const result = await generateImageFromText({ prompt: editPrompt, originalImageUrl: imageUrl });
       setImageUrl(result.imageUrl);
+      setPrompt(editPrompt);
       setEditPrompt("");
       setIsEditing(false);
     } catch (error) {
@@ -95,14 +96,22 @@ export function ImageGenerationPanel() {
           rows={3}
           disabled={isLoading}
         />
-        <Button type="submit" disabled={isLoading || !prompt.trim()} className="w-full">
-          {isLoading && !isEditing ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Sparkles className="mr-2 h-4 w-4" />
-          )}
-          Generate Image
-        </Button>
+        <div className="flex gap-2">
+            <Button type="submit" disabled={isLoading || !prompt.trim()} className="w-full">
+            {isLoading && !isEditing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+                <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            Generate Image
+            </Button>
+            {imageUrl && (
+                <Button variant="secondary" onClick={handleGenerateImage} disabled={isLoading} className="w-full">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Generate Again
+                </Button>
+            )}
+        </div>
       </form>
 
       <Card>
@@ -157,7 +166,7 @@ export function ImageGenerationPanel() {
                     )}
                     <DialogFooter className="mt-4">
                         {!isEditing && (
-                            <Button variant="outline" onClick={() => setIsEditing(true)}>
+                            <Button variant="outline" onClick={() => { setEditPrompt(prompt); setIsEditing(true); }}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Image
                             </Button>

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, Image as ImageIcon } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, Image as ImageIcon, Copy, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
@@ -71,6 +71,22 @@ export function ChatPanel() {
     }
   };
 
+  const handleRegenerate = () => {
+    if (messages.length < 2 || isLoading) return;
+    const lastUserMessage = messages.filter(m => m.role === 'user').at(-1);
+    if(lastUserMessage) {
+        handleSendMessage(new Event('submit') as unknown as React.FormEvent, lastUserMessage.content);
+    }
+  }
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+        title: "Copied!",
+        description: "The response has been copied to your clipboard.",
+    });
+  }
+
   const handlePlayAudio = async (messageId: string, text: string) => {
     if (audioPlaying === messageId) {
       audioRef.current?.pause();
@@ -126,11 +142,10 @@ export function ChatPanel() {
               )}
               <div
                 className={cn(
-                  "max-w-[75%] rounded-lg p-3 space-y-2",
+                  "max-w-[75%] rounded-lg p-3",
                   message.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-card",
-                  message.type === 'image' && 'p-1 bg-transparent'
                 )}
               >
                 {message.type === 'image' ? (
@@ -143,29 +158,55 @@ export function ChatPanel() {
                         data-ai-hint="generated image"
                     />
                 ) : (
-                    <p className="text-sm leading-relaxed break-words">{message.content}</p>
+                    <p className="text-sm leading-relaxed break-words select-text">{message.content}</p>
                 )}
                 
-                {message.role === 'assistant' && message.content.startsWith("Visit this page") && (
-                    <Button asChild variant="outline" className="mt-2">
-                        <Link href="/generation/image">
-                            <ImageIcon className="mr-2 h-4 w-4" />
-                            Image Generation
-                        </Link>
-                    </Button>
-                )}
-
-                {message.role === 'assistant' && message.type === 'text' && !message.content.startsWith("Visit this page") && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                    onClick={() => handlePlayAudio(message.id, message.content)}
-                    disabled={audioPlaying !== null && audioPlaying !== message.id}
-                  >
-                    {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
-                     <span className="sr-only">Play audio</span>
-                  </Button>
+                {message.role === 'assistant' && (
+                    <div className="mt-2 flex items-center gap-2">
+                        {message.content.startsWith("Visit this page") ? (
+                            <Button asChild variant="outline" size="sm">
+                                <Link href="/generation/image">
+                                    <ImageIcon className="mr-2 h-4 w-4" />
+                                    Image Generation
+                                </Link>
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handlePlayAudio(message.id, message.content)}
+                                    disabled={audioPlaying !== null && audioPlaying !== message.id}
+                                    title="Play audio"
+                                >
+                                    {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
+                                    <span className="sr-only">Play audio</span>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handleCopy(message.content)}
+                                    title="Copy response"
+                                >
+                                    <Copy className="h-4 w-4" />
+                                    <span className="sr-only">Copy response</span>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    onClick={handleRegenerate}
+                                    disabled={isLoading}
+                                    title="Regenerate response"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                    <span className="sr-only">Regenerate response</span>
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 )}
               </div>
               {message.role === "user" && (

@@ -47,7 +47,9 @@ export function ChatPanel() {
   const { toast } = useToast();
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 0)
   }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent, prompt?: string) => {
@@ -87,6 +89,8 @@ export function ChatPanel() {
         }
     } catch (error) {
       console.error("Error in conversation:", error);
+      const userMessageId = userMessage.id;
+      setMessages((prev) => prev.filter(m => m.id !== userMessageId));
       toast({
         variant: "destructive",
         title: "Error",
@@ -263,3 +267,5 @@ export function ChatPanel() {
     </div>
   );
 }
+
+    

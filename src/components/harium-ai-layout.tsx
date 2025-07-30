@@ -50,9 +50,9 @@ export function HariumAiLayout() {
         <SidebarHeader>
             <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
-                    <AvatarFallback className="bg-primary text-primary-foreground font-bold">H</AvatarFallback>
+                    <AvatarFallback className="bg-primary text-primary-foreground font-black">H</AvatarFallback>
                 </Avatar>
-                <h1 className="text-lg font-semibold">HariumAI</h1>
+                <h1 className="text-lg font-black">HariumAI</h1>
             </div>
         </SidebarHeader>
         <SidebarContent>

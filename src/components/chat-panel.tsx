@@ -68,9 +68,7 @@ export function ChatPanel() {
   const { toast } = useToast();
 
   useEffect(() => {
-    setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 0)
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSendMessage = async (e: React.FormEvent, prompt?: string) => {
@@ -110,6 +108,10 @@ export function ChatPanel() {
         }
     } catch (error) {
       console.error("Error in conversation:", error);
+      const lastUserMessageIndex = messages.findLastIndex(m => m.role === 'user');
+      if (lastUserMessageIndex !== -1) {
+        setMessages(prev => prev.slice(0, lastUserMessageIndex + 1));
+      }
       toast({
         variant: "destructive",
         title: "Error",
@@ -161,7 +163,7 @@ export function ChatPanel() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)]">
+    <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-3xl mx-auto py-8">
           {messages.map((message) => (

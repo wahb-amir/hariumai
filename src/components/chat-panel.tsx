@@ -171,7 +171,7 @@ export function ChatPanel() {
                         data-ai-hint="generated image"
                     />
                 ) : (
-                    <p className="text-sm leading-relaxed">{message.content}</p>
+                    <p className="text-sm leading-relaxed break-words">{message.content}</p>
                 )}
 
                 {message.role === 'assistant' && message.type === 'text' && (

@@ -236,6 +236,7 @@ export function ChatPanel() {
       </ScrollArea>
       <div className="border-t pt-4 bg-background">
         <div className="max-w-3xl mx-auto">
+          <div className="h-[76px]">
             {messages.length <= 1 && (
                 <div className="mb-4">
                     <div className="flex items-center gap-2 mb-3 px-2">
@@ -260,6 +261,7 @@ export function ChatPanel() {
                     </div>
                 </div>
             )}
+          </div>
             <form onSubmit={handleSendMessage} className="relative">
                 <Textarea
                     value={input}

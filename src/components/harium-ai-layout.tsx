@@ -24,6 +24,7 @@ import {
     LogOut,
     Cog,
     Menu,
+    Sparkles,
 } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -39,9 +40,9 @@ export function HariumAiLayout() {
         <SidebarHeader>
             <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
-                    <AvatarFallback className="font-bold text-lg">H</AvatarFallback>
+                    <AvatarFallback className="bg-primary text-primary-foreground"><Sparkles className="h-5 w-5" /></AvatarFallback>
                 </Avatar>
-                <h1 className="text-lg font-semibold">Harium AI</h1>
+                <h1 className="text-lg font-semibold">HariumAI</h1>
             </div>
         </SidebarHeader>
         <SidebarContent>
@@ -109,12 +110,12 @@ export function HariumAiLayout() {
       <SidebarInset>
         <header className="p-4 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10">
              <div className="flex items-center gap-2">
-                <SidebarTrigger asChild>
+                <SidebarTrigger>
                     <Button variant="ghost" size="icon" className="md:hidden">
                         <Menu />
                     </Button>
                 </SidebarTrigger>
-                <h2 className="font-semibold">Harium AI <span className="text-xs text-muted-foreground font-normal">(ha-1.4)</span></h2>
+                <h2 className="font-bold text-lg">Harium AI <span className="text-xs text-muted-foreground font-normal">(ha-1.4)</span></h2>
              </div>
              <div className="flex items-center gap-2">
                 <Button>Publish</Button>

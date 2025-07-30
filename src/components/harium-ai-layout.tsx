@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   SidebarProvider,
   Sidebar,
@@ -15,130 +15,132 @@ import {
   SidebarGroupLabel,
   SidebarSeparator,
   SidebarInset,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 import {
-    Plus,
-    Users,
-    VolumeX,
-    User as UserIcon,
-    LogOut,
-    Cog,
-    Menu,
-    Moon,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { ChatPanel } from "./chat-panel"
+  Plus,
+  Users,
+  VolumeX,
+  User as UserIcon,
+  LogOut,
+  Cog,
+  Menu,
+  Moon,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { ChatPanel } from "./chat-panel";
+import { HariumLogo } from "./harium-logo";
 
 export function HariumAiLayout() {
-  const [voiceResponses, setVoiceResponses] = React.useState(false)
-  const [isDarkMode, setIsDarkMode] = React.useState(false)
+  const [voiceResponses, setVoiceResponses] = React.useState(false);
+  const [isDarkMode, setIsDarkMode] = React.useState(false);
 
   React.useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add("dark")
-    } else {
-      document.documentElement.classList.remove("dark")
-    }
-  }, [isDarkMode])
+    document.documentElement.classList.toggle("dark", isDarkMode);
+  }, [isDarkMode]);
 
   return (
     <SidebarProvider>
       <Sidebar>
         <SidebarHeader>
-            <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black">
-                    <span className="animate-breathing text-lg font-black text-white">H</span>
-                </div>
-                <h1 className="text-lg font-black">HariumAI</h1>
-            </div>
+          <div className="flex items-center gap-2">
+            <HariumLogo />
+            <h1 className="text-lg font-black">HariumAI</h1>
+          </div>
         </SidebarHeader>
         <SidebarContent>
-            <SidebarMenu>
-                <SidebarGroup>
-                    <SidebarGroupLabel>Chat Options</SidebarGroupLabel>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton isActive>
-                            <Plus />
-                            New AI Chat
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton>
-                            <Users />
-                            Live Group Chat (Coming Soon)
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarGroup>
-                <SidebarSeparator />
-                <SidebarGroup>
-                    <SidebarGroupLabel>Accessibility</SidebarGroupLabel>
-                    <SidebarMenuItem>
-                        <div className="flex items-center justify-between w-full p-2 text-sm">
-                            <div className="flex items-center gap-2">
-                                <VolumeX className="h-4 w-4" />
-                                <span>Voice Responses</span>
-                            </div>
-                            <Switch checked={voiceResponses} onCheckedChange={setVoiceResponses} />
-                        </div>
-                    </SidebarMenuItem>
-                     <SidebarMenuItem>
-                        <div className="flex items-center justify-between w-full p-2 text-sm">
-                            <div className="flex items-center gap-2">
-                                <Moon className="h-4 w-4" />
-                                <span>Dark Mode</span>
-                            </div>
-                            <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} />
-                        </div>
-                    </SidebarMenuItem>
-                </SidebarGroup>
-                <SidebarSeparator />
-                 <SidebarGroup>
-                    <SidebarGroupLabel>Profile</SidebarGroupLabel>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton>
-                            <UserIcon />
-                            Edit Profile
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                        <SidebarMenuButton>
-                            <LogOut />
-                            Logout
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarGroup>
-            </SidebarMenu>
+          <SidebarMenu>
+            <SidebarGroup>
+              <SidebarGroupLabel>Chat Options</SidebarGroupLabel>
+              <SidebarMenuItem>
+                <SidebarMenuButton isActive>
+                  <Plus />
+                  New AI Chat
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <Users />
+                  Live Group Chat (Coming Soon)
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarGroup>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>Accessibility</SidebarGroupLabel>
+              <SidebarMenuItem>
+                <div className="flex items-center justify-between w-full p-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <VolumeX className="h-4 w-4" />
+                    <span>Voice Responses</span>
+                  </div>
+                  <Switch
+                    checked={voiceResponses}
+                    onCheckedChange={setVoiceResponses}
+                  />
+                </div>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <div className="flex items-center justify-between w-full p-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Moon className="h-4 w-4" />
+                    <span>Dark Mode</span>
+                  </div>
+                  <Switch checked={isDarkMode} onCheckedChange={setIsDarkMode} />
+                </div>
+              </SidebarMenuItem>
+            </SidebarGroup>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>Profile</SidebarGroupLabel>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <UserIcon />
+                  Edit Profile
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <LogOut />
+                  Logout
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarGroup>
+          </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-            <SidebarMenu>
-                 <SidebarGroup>
-                    <SidebarGroupLabel>AI Model</SidebarGroupLabel>
-                     <SidebarMenuItem>
-                        <SidebarMenuButton>
-                            <Cog />
-                            ha-1.1
-                        </SidebarMenuButton>
-                    </SidebarMenuItem>
-                </SidebarGroup>
-            </SidebarMenu>
+          <SidebarMenu>
+            <SidebarGroup>
+              <SidebarGroupLabel>AI Model</SidebarGroupLabel>
+              <SidebarMenuItem>
+                <SidebarMenuButton>
+                  <Cog />
+                  ha-1.1
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarGroup>
+          </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
         <header className="p-4 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-             <div className="flex items-center gap-2">
-                <SidebarTrigger className="md:hidden">
-                    <Menu />
-                </SidebarTrigger>
-                <h2 className="font-black text-lg">Harium AI <span className="text-xs text-muted-foreground font-normal">(ha-1.4)</span></h2>
-             </div>
-             <div className="flex items-center gap-2">
-             </div>
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="md:hidden">
+              <Menu />
+            </SidebarTrigger>
+            <h2 className="font-black text-lg">
+              Harium AI{" "}
+              <span className="text-xs text-muted-foreground font-normal">
+                (ha-1.4)
+              </span>
+            </h2>
+          </div>
+          <div className="flex items-center gap-2"></div>
         </header>
         <main className="flex-1">
-            <ChatPanel />
+          <ChatPanel />
         </main>
       </SidebarInset>
     </SidebarProvider>
-  )
+  );
 }

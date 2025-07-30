@@ -11,6 +11,7 @@ import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { HariumLogo } from "./harium-logo";
 
 type Message = {
   id: string;
@@ -64,7 +65,8 @@ export function ChatPanel() {
         title: "Error",
         description: "Failed to get a response from the AI.",
       });
-      setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
+      const newMessages = [...messages].filter((msg) => msg.id !== userMessage.id);
+      setMessages(newMessages);
     } finally {
       setIsLoading(false);
     }
@@ -117,8 +119,10 @@ export function ChatPanel() {
           {messages.map((message) => (
             <div key={message.id} className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
               {message.role === "assistant" && (
-                <Avatar className="h-8 w-8 border bg-background">
-                  <AvatarFallback className="bg-transparent"><Bot className="h-5 w-5" /></AvatarFallback>
+                 <Avatar className="h-8 w-8 border bg-transparent">
+                  <AvatarFallback className="bg-transparent text-transparent">
+                    <HariumLogo className="h-8 w-8" />
+                  </AvatarFallback>
                 </Avatar>
               )}
               <div
@@ -152,9 +156,11 @@ export function ChatPanel() {
           ))}
            {isLoading && (
             <div className="flex items-start gap-4">
-              <Avatar className="h-8 w-8 border bg-background">
-                 <AvatarFallback className="bg-transparent"><Bot className="h-5 w-5" /></AvatarFallback>
-              </Avatar>
+               <Avatar className="h-8 w-8 border bg-transparent">
+                  <AvatarFallback className="bg-transparent text-transparent">
+                    <HariumLogo className="h-8 w-8" />
+                  </AvatarFallback>
+                </Avatar>
               <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
                 <Loader2 className="h-5 w-5 animate-spin" />
                 <span className="text-sm text-muted-foreground">HariumAI is thinking...</span>

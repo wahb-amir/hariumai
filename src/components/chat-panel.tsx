@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
 import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
 
 type Message = {
   id: string;
@@ -189,7 +190,9 @@ export function ChatPanel() {
             )}
             <form onSubmit={handleSendMessage} className="relative">
                 <Avatar className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8">
-                    <AvatarFallback className="bg-primary text-primary-foreground">N</AvatarFallback>
+                  <AvatarFallback className="bg-primary text-primary-foreground">
+                    <Image src="/firebase-logo.svg" alt="Firebase" width={20} height={20} />
+                  </AvatarFallback>
                 </Avatar>
                 <Textarea
                     value={input}

@@ -18,6 +18,7 @@ export type ConverseWithAiInput = z.infer<typeof ConverseWithAiInputSchema>;
 
 const ConverseWithAiOutputSchema = z.object({
   response: z.string().describe('The AI assistant response.'),
+  isImageQuery: z.boolean().describe('Whether the query is for an image.'),
 });
 export type ConverseWithAiOutput = z.infer<typeof ConverseWithAiOutputSchema>;
 
@@ -29,8 +30,13 @@ const converseWithAiPrompt = ai.definePrompt({
   name: 'converseWithAiPrompt',
   input: {schema: ConverseWithAiInputSchema},
   output: {schema: ConverseWithAiOutputSchema},
-  prompt: `You are a helpful AI assistant. Please respond to the following prompt:
+  prompt: `You are a helpful AI assistant. Analyze the user's prompt and determine if they are asking to generate an image.
 
+If the prompt is asking to create, generate, draw, or show an image, picture, or photo of something, set the isImageQuery field to true and set the response field to "Visit this page to create your dedicated image:".
+
+Otherwise, set isImageQuery to false and provide a helpful text-based response to the user's prompt.
+
+Prompt:
 {{{prompt}}}`,
 });
 

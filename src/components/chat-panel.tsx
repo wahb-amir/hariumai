@@ -21,13 +21,6 @@ type Message = {
   type?: "text" | "image";
 };
 
-const imageGenerationTriggers = [
-    "generate an image of",
-    "create an image of",
-    "draw a picture of",
-    "show me an image of"
-];
-
 export function ChatPanel() {
   const [messages, setMessages] = useState<Message[]>([
     { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
@@ -57,35 +50,16 @@ export function ChatPanel() {
     setIsLoading(true);
 
     try {
-        const lowerCaseInput = currentInput.toLowerCase();
-        let isImageRequest = false;
-        
-        for (const trigger of imageGenerationTriggers) {
-            if (lowerCaseInput.startsWith(trigger)) {
-                isImageRequest = true;
-                break;
-            }
-        }
-        
-        if (isImageRequest) {
-            const assistantMessage: Message = { 
-                id: `asst-${Date.now()}`, 
-                role: "assistant", 
-                content: "Visit this page to create your dedicated image:", 
-                type: 'text' 
-            };
-            setMessages((prev) => [...prev, assistantMessage]);
-        } else {
-            const result = await converseWithAi({ prompt: currentInput });
-            const assistantMessage: Message = { id: `asst-${Date.now()}`, role: "assistant", content: result.response, type: 'text' };
-            setMessages((prev) => [...prev, assistantMessage]);
-        }
+        const result = await converseWithAi({ prompt: currentInput });
+        const assistantMessage: Message = { 
+            id: `asst-${Date.now()}`, 
+            role: "assistant", 
+            content: result.response,
+            type: 'text' 
+        };
+        setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error("Error in conversation:", error);
-      const userMessageIndex = messages.findIndex((msg) => msg.id === userMessage.id);
-      if (userMessageIndex !== -1) {
-         setMessages((prev) => prev.slice(0, userMessageIndex + 1));
-      }
       
       toast({
         variant: "destructive",

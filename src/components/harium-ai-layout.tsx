@@ -110,10 +110,8 @@ export function HariumAiLayout() {
       <SidebarInset>
         <header className="p-4 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10">
              <div className="flex items-center gap-2">
-                <SidebarTrigger>
-                    <Button variant="ghost" size="icon" className="md:hidden">
-                        <Menu />
-                    </Button>
+                <SidebarTrigger className="md:hidden">
+                  <Menu />
                 </SidebarTrigger>
                 <h2 className="font-bold text-lg">Harium AI <span className="text-xs text-muted-foreground font-normal">(ha-1.4)</span></h2>
              </div>

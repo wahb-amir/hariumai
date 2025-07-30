@@ -24,10 +24,8 @@ import {
     LogOut,
     Cog,
     Menu,
-    Sparkles,
     Moon,
 } from "lucide-react"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { ChatPanel } from "./chat-panel"
@@ -49,9 +47,9 @@ export function HariumAiLayout() {
       <Sidebar>
         <SidebarHeader>
             <div className="flex items-center gap-2">
-                <Avatar className="h-8 w-8 bg-primary text-primary-foreground">
-                    <AvatarFallback className="bg-primary text-primary-foreground font-black">H</AvatarFallback>
-                </Avatar>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-black">
+                    <span className="animate-breathing text-lg font-black text-white">H</span>
+                </div>
                 <h1 className="text-lg font-black">HariumAI</h1>
             </div>
         </SidebarHeader>
@@ -132,10 +130,9 @@ export function HariumAiLayout() {
                 <SidebarTrigger className="md:hidden">
                     <Menu />
                 </SidebarTrigger>
-                <h2 className="font-bold text-lg">Harium AI <span className="text-xs text-muted-foreground font-normal">(ha-1.4)</span></h2>
+                <h2 className="font-black text-lg">Harium AI <span className="text-xs text-muted-foreground font-normal">(ha-1.4)</span></h2>
              </div>
              <div className="flex items-center gap-2">
-                {/* Removed Publish Button and Avatar */}
              </div>
         </header>
         <main className="flex-1">

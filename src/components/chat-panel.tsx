@@ -65,7 +65,7 @@ export function ChatPanel() {
         title: "Error",
         description: "Failed to get a response from the AI.",
       });
-      const newMessages = [...messages].filter((msg) => msg.id !== userMessage.id);
+      const newMessages = messages.filter((msg) => msg.id !== userMessage.id);
       setMessages(newMessages);
     } finally {
       setIsLoading(false);
@@ -119,7 +119,7 @@ export function ChatPanel() {
           {messages.map((message) => (
             <div key={message.id} className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
               {message.role === "assistant" && (
-                 <Avatar className="h-8 w-8 border bg-transparent">
+                 <Avatar className="h-8 w-8 border-none bg-transparent">
                   <AvatarFallback className="bg-transparent text-transparent">
                     <HariumLogo className="h-8 w-8" />
                   </AvatarFallback>
@@ -156,7 +156,7 @@ export function ChatPanel() {
           ))}
            {isLoading && (
             <div className="flex items-start gap-4">
-               <Avatar className="h-8 w-8 border bg-transparent">
+               <Avatar className="h-8 w-8 border-none bg-transparent">
                   <AvatarFallback className="bg-transparent text-transparent">
                     <HariumLogo className="h-8 w-8" />
                   </AvatarFallback>

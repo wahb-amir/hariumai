@@ -10,7 +10,7 @@ import {
   RecaptchaVerifier,
   ConfirmationResult,
 } from 'firebase/auth';
-import { app } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -41,7 +41,6 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const auth = getAuth(app);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();

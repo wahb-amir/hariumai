@@ -1,8 +1,9 @@
+
 "use client";
 
 import * as React from "react";
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   SidebarProvider,
   Sidebar,
@@ -19,7 +20,6 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import {
-  Plus,
   Users,
   VolumeX,
   User as UserIcon,
@@ -28,21 +28,55 @@ import {
   Menu,
   Moon,
   MessageSquare,
-  Image as ImageIcon
+  Image as ImageIcon,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ChatPanel } from "./chat-panel";
 import { HariumLogo } from "./harium-logo";
+import { useAuth, AuthProvider } from "@/hooks/use-auth";
+import { getAuth, signOut } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
 
-export function HariumAiLayout({ children }: { children?: React.ReactNode}) {
+
+function AuthWrapper({ children }: { children: React.ReactNode}) {
+    return (
+        <AuthProvider>
+            {children}
+        </AuthProvider>
+    )
+}
+
+function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
   const [voiceResponses, setVoiceResponses] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { user } = useAuth();
+  const auth = getAuth();
+  const { toast } = useToast();
 
   React.useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);
   }, [isDarkMode]);
+
+  const handleLogout = async () => {
+    try {
+        await signOut(auth);
+        toast({
+            title: 'Signed Out',
+            description: 'You have been successfully signed out.'
+        });
+        router.push('/login');
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Failed to sign out.'
+        })
+    }
+  }
 
   const mainContent = children || <ChatPanel />;
 
@@ -110,18 +144,31 @@ export function HariumAiLayout({ children }: { children?: React.ReactNode}) {
             <SidebarSeparator />
             <SidebarGroup>
               <SidebarGroupLabel>Profile</SidebarGroupLabel>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <UserIcon />
-                  Edit Profile
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <LogOut />
-                  Logout
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {user ? (
+                <>
+                <SidebarMenuItem>
+                    <SidebarMenuButton>
+                    <UserIcon />
+                    <span className="truncate">{user.email || user.phoneNumber}</span>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                    <SidebarMenuButton onClick={handleLogout}>
+                    <LogOut />
+                    Logout
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                </>
+              ) : (
+                <SidebarMenuItem>
+                    <Link href="/login" className="w-full">
+                        <SidebarMenuButton>
+                            <LogIn />
+                            Login
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+              )}
             </SidebarGroup>
           </SidebarMenu>
         </SidebarContent>
@@ -160,4 +207,13 @@ export function HariumAiLayout({ children }: { children?: React.ReactNode}) {
       </SidebarInset>
     </SidebarProvider>
   );
+}
+
+
+export function HariumAiLayout({ children }: { children?: React.ReactNode}) {
+    return (
+        <AuthProvider>
+            <HariumAiLayoutClient>{children}</HariumAiLayoutClient>
+        </AuthProvider>
+    )
 }

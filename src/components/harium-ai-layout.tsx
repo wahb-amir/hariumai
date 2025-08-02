@@ -38,6 +38,7 @@ import { HariumLogo } from "./harium-logo";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { getAuth, signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
+import { app } from "@/lib/firebase";
 
 
 function AuthWrapper({ children }: { children: React.ReactNode}) {
@@ -54,7 +55,6 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
-  const auth = getAuth();
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -63,12 +63,15 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
 
   const handleLogout = async () => {
     try {
-        await signOut(auth);
-        toast({
-            title: 'Signed Out',
-            description: 'You have been successfully signed out.'
-        });
-        router.push('/login');
+        if (app) {
+            const auth = getAuth(app);
+            await signOut(auth);
+            toast({
+                title: 'Signed Out',
+                description: 'You have been successfully signed out.'
+            });
+            router.push('/login');
+        }
     } catch (error) {
         toast({
             variant: 'destructive',

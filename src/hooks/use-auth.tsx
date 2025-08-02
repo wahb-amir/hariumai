@@ -17,12 +17,17 @@ const AuthContext = createContext<AuthContextType>({ user: null, loading: true }
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const auth = getAuth(app);
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    // We need to make sure firebase auth is initialized before we can use it.
+    // We can do this by just calling getAuth() on the app instance.
+    if (!app) {
+        return;
+    }
+    const auth = getAuth(app);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
@@ -51,7 +56,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
 
     return () => unsubscribe();
-  }, [auth, toast, router, pathname]);
+  }, [toast, router, pathname]);
 
   return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>;
 };

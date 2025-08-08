@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, Image as ImageIcon, Copy, RefreshCw } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, ImageIcon, Copy, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
@@ -23,7 +23,7 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  type?: "text" | "image";
+  type: "text" | "image";
 };
 
 type ChatPanelProps = {
@@ -80,13 +80,12 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                         id: `hist-${index}-${Date.now()}`,
                         role: item.role,
                         content: item.content,
-                        type: 'text' as const,
+                        // This part needs to be smarter if we save images
+                        type: 'text' as const, 
                     }));
                     setMessages(loadedMessages);
                 } else {
-                    setMessages([
-                        { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. I'm a large model trained by Chohan Space. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
-                    ]);
+                     setMessages([]);
                 }
             } catch (error) {
                  console.error("Error fetching chat history:", error);
@@ -140,7 +139,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
             id: `asst-${Date.now()}`, 
             role: "assistant", 
             content: result.response,
-            type: 'text' 
+            type: result.responseType
         };
         setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
@@ -269,14 +268,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                 
                 {message.role === 'assistant' && !isLoading && index === messages.length - 1 && (
                     <div className="mt-2 flex items-center gap-2">
-                         {message.content.startsWith("Visit this page") ? (
-                            <Button asChild variant="outline" size="sm">
-                                <Link href="/generation/image">
-                                    <ImageIcon className="mr-2 h-4 w-4" />
-                                    Image Generation
-                                </Link>
-                            </Button>
-                        ) : (
+                         {message.type === 'text' && (
                             <>
                                 <Button
                                     variant="ghost"

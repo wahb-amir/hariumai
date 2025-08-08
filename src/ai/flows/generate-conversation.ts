@@ -12,6 +12,7 @@ import {ai} from '@/ai/genkit';
 import { saveMessage, getHistory, getSession, createSession } from '@/services/chat-history';
 import {z} from 'genkit';
 import { generateChatTitle } from './generate-chat-title';
+import { generateImageFromText } from './generate-image-from-text';
 
 const ConverseWithAiInputSchema = z.object({
   prompt: z.string().describe('The prompt for the AI conversation.'),
@@ -21,8 +22,8 @@ const ConverseWithAiInputSchema = z.object({
 export type ConverseWithAiInput = z.infer<typeof ConverseWithAiInputSchema>;
 
 const ConverseWithAiOutputSchema = z.object({
-  response: z.string().describe('The AI assistant response.'),
-  isImageQuery: z.boolean().describe('Whether the query is for an image.'),
+  response: z.string().describe('The AI assistant response, which can be text or an image data URI.'),
+  responseType: z.enum(['text', 'image']).describe('The type of the response.'),
   newSessionId: z.string().optional().describe('The new session ID if one was created.'),
 });
 export type ConverseWithAiOutput = z.infer<typeof ConverseWithAiOutputSchema>;
@@ -48,7 +49,7 @@ const converseWithAiPrompt = ai.definePrompt({
 
 Analyze the user's prompt and determine if they are asking to generate an image.
 
-If the prompt is asking to create, generate, draw, or show an image, picture, or photo of something, set the isImageQuery field to true and set the response field to "Visit this page to create your dedicated image:".
+If the prompt is asking to create, generate, draw, or show an image, picture, or photo of something, set the isImageQuery field to true and set the response field to a short confirmation message that you are creating the image.
 
 Otherwise, set isImageQuery to false and provide a helpful text-based response to the user's prompt.
 
@@ -98,14 +99,39 @@ const converseWithAiFlow = ai.defineFlow(
 
     const {output} = await converseWithAiPrompt({prompt, history: mappedHistory});
 
-    if (output) {
-      await saveMessage({
+    if (!output) {
+      return {
+        response: 'Sorry, I had an issue generating a response.',
+        responseType: 'text',
+      }
+    }
+
+    if (output.isImageQuery) {
+        const imageResult = await generateImageFromText({ prompt });
+        await saveMessage({
+            role: 'assistant',
+            content: "Image generated", // Placeholder text for history
+            sessionId: currentSessionId,
+        });
+        return {
+            response: imageResult.imageUrl,
+            responseType: 'image',
+            newSessionId
+        }
+    }
+
+
+    await saveMessage({
         role: 'assistant',
         content: output.response,
         sessionId: currentSessionId,
-      });
-    }
+    });
+    
 
-    return { ...output!, newSessionId };
+    return { 
+        response: output.response,
+        responseType: 'text',
+        newSessionId 
+    };
   }
 );

@@ -7,6 +7,7 @@
 
 import { ai } from '@/ai/genkit';
 import { GenerateChatTitleInput, GenerateChatTitleInputSchema, GenerateChatTitleOutput, GenerateChatTitleOutputSchema } from '@/ai/schemas/chat-title';
+import { z } from 'genkit';
 
 export async function generateChatTitle(input: GenerateChatTitleInput): Promise<GenerateChatTitleOutput> {
   return generateChatTitleFlow(input);
@@ -15,6 +16,7 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
 const generateChatTitlePrompt = ai.definePrompt({
     name: 'generateChatTitlePrompt',
     input: { schema: GenerateChatTitleInputSchema },
+    output: { schema: z.object({ title: GenerateChatTitleOutputSchema }) },
     prompt: `Based on the following user prompt, create a short, descriptive title for a new chat session. The title should be no more than 5 words.
 
 Prompt: {{{prompt}}}
@@ -30,9 +32,9 @@ const generateChatTitleFlow = ai.defineFlow(
   },
   async ({ prompt }) => {
     const { output } = await generateChatTitlePrompt({ prompt });
-    if (!output) {
+    if (!output?.title) {
       return "New Chat";
     }
-    return output;
+    return output.title;
   }
 );

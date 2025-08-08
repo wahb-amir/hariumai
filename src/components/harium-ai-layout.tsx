@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import * as React from "react";
@@ -113,7 +114,7 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
     }
   }
 
-  const mainContent = children || <ChatPanel />;
+  const mainContent = children;
 
   return (
     <SidebarProvider>
@@ -138,7 +139,7 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
             </SidebarGroup>
             <SidebarSeparator />
             <SidebarGroup>
-              <SidebarGroupLabel className="flex items-center gap-2"><History /> Recent Chats</SidebarGroupLabel>
+              <SidebarGroupLabel className="flex items-center gap-2"><History className="h-4 w-4" />Recent Chats</SidebarGroupLabel>
               {chatSessions.map(session => (
                  <SidebarMenuItem key={session.sessionId}>
                     <Link href={`/chat/${session.sessionId}`} className="w-full">

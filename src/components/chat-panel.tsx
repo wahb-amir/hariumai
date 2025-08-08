@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -60,6 +61,13 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
         setUserId(currentUserId);
     }
   }, [user, authLoading]);
+
+  useEffect(() => {
+    toast({
+        title: "Image Notice",
+        description: "Generated images are not saved in your chat history.",
+    });
+  }, [toast]);
 
   useEffect(() => {
     const fetchHistory = async () => {

@@ -15,7 +15,6 @@ export async function generateChatTitle(input: GenerateChatTitleInput): Promise<
 const generateChatTitlePrompt = ai.definePrompt({
     name: 'generateChatTitlePrompt',
     input: { schema: GenerateChatTitleInputSchema },
-    output: { schema: GenerateChatTitleOutputSchema },
     prompt: `Based on the following user prompt, create a short, descriptive title for a new chat session. The title should be no more than 5 words.
 
 Prompt: {{{prompt}}}

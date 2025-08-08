@@ -31,6 +31,9 @@ const generateChatTitleFlow = ai.defineFlow(
   },
   async ({ prompt }) => {
     const { output } = await generateChatTitlePrompt({ prompt });
-    return output || "New Chat";
+    if (!output) {
+      return "New Chat";
+    }
+    return output;
   }
 );

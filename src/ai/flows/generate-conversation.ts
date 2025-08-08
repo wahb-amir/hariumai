@@ -72,6 +72,9 @@ const converseWithAiFlow = ai.defineFlow(
         const title = await generateChatTitle({ prompt });
         await createSession({ sessionId: currentSessionId, userId, title });
         newSessionId = currentSessionId;
+        // Dispatch an event to notify the UI that the chat list has been updated.
+        // This is a client-side concept, so we can't do it here directly.
+        // The front-end will need to poll or use a subscription to update the list.
     }
 
     await saveMessage({

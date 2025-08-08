@@ -43,5 +43,30 @@ export async function saveMessage(message: Message) {
 export async function getHistory(sessionId: string) {
     const database = await connectToDb();
     const collection = database.collection('history');
-    return await collection.find({ sessionId }).sort({ timestamp: 1 }).toArray();
+    return await collection.find({ sessionId }).sort({ timestamp: 1 }).limit(20).toArray();
+}
+
+export type Session = {
+    sessionId: string;
+    userId: string;
+    title: string;
+    timestamp?: Date;
+}
+
+export async function createSession(session: Omit<Session, 'timestamp'>) {
+    const database = await connectToDb();
+    const collection = database.collection('sessions');
+    return await collection.insertOne({ ...session, timestamp: new Date() });
+}
+
+export async function getSession(sessionId: string) {
+    const database = await connectToDb();
+    const collection = database.collection('sessions');
+    return await collection.findOne({ sessionId });
+}
+
+export async function getSessions(userId: string) {
+    const database = await connectToDb();
+    const collection = database.collection('sessions');
+    return await collection.find({ userId }).sort({ timestamp: -1 }).toArray();
 }

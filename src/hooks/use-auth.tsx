@@ -29,8 +29,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
-      if (user && pathname === '/login') {
-        router.replace('/');
+      
+      // When user logs in, remove anonymous id, redirect and reload sessions.
+      if (user) {
+        localStorage.removeItem('anonymous_user_id');
+        window.dispatchEvent(new Event('chat-updated'));
+        if (pathname === '/login') {
+            router.replace('/');
+        }
       }
     });
 

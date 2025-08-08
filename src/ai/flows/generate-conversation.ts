@@ -9,18 +9,21 @@
  */
 
 import {ai} from '@/ai/genkit';
-import { saveMessage } from '@/services/chat-history';
+import { saveMessage, getHistory, getSession, createSession } from '@/services/chat-history';
 import {z} from 'genkit';
+import { generateChatTitle } from './generate-chat-title';
 
 const ConverseWithAiInputSchema = z.object({
   prompt: z.string().describe('The prompt for the AI conversation.'),
   sessionId: z.string().describe('The user\'s session ID.'),
+  userId: z.string().describe('The user\'s ID (can be an anonymous ID).'),
 });
 export type ConverseWithAiInput = z.infer<typeof ConverseWithAiInputSchema>;
 
 const ConverseWithAiOutputSchema = z.object({
   response: z.string().describe('The AI assistant response.'),
   isImageQuery: z.boolean().describe('Whether the query is for an image.'),
+  newSessionId: z.string().optional().describe('The new session ID if one was created.'),
 });
 export type ConverseWithAiOutput = z.infer<typeof ConverseWithAiOutputSchema>;
 
@@ -30,7 +33,13 @@ export async function converseWithAi(input: ConverseWithAiInput): Promise<Conver
 
 const converseWithAiPrompt = ai.definePrompt({
   name: 'converseWithAiPrompt',
-  input: {schema: z.object({prompt: z.string()})},
+  input: {schema: z.object({
+    prompt: z.string(),
+    history: z.array(z.object({
+        role: z.enum(['user', 'assistant']),
+        content: z.string(),
+    })),
+  })},
   output: {schema: ConverseWithAiOutputSchema},
   prompt: `You are a helpful AI assistant. Analyze the user's prompt and determine if they are asking to generate an image.
 
@@ -38,7 +47,12 @@ If the prompt is asking to create, generate, draw, or show an image, picture, or
 
 Otherwise, set isImageQuery to false and provide a helpful text-based response to the user's prompt.
 
-Prompt:
+Here is the recent chat history for context:
+{{#each history}}
+{{role}}: {{content}}
+{{/each}}
+
+New Prompt:
 {{{prompt}}}`,
 });
 
@@ -48,22 +62,40 @@ const converseWithAiFlow = ai.defineFlow(
     inputSchema: ConverseWithAiInputSchema,
     outputSchema: ConverseWithAiOutputSchema,
   },
-  async ({prompt, sessionId}) => {
+  async ({prompt, sessionId, userId}) => {
+    let currentSessionId = sessionId;
+    let newSessionId: string | undefined;
+
+    // Check if this is a new chat session. If so, create a title.
+    const session = await getSession(currentSessionId);
+    if (!session) {
+        const title = await generateChatTitle({ prompt });
+        await createSession({ sessionId: currentSessionId, userId, title });
+        newSessionId = currentSessionId;
+    }
+
     await saveMessage({
       role: 'user',
       content: prompt,
-      sessionId,
+      sessionId: currentSessionId,
     });
-    const {output} = await converseWithAiPrompt({prompt});
+    
+    const history = await getHistory(currentSessionId);
+    const mappedHistory = history.map(item => ({
+        role: item.role,
+        content: item.content
+    }));
+
+    const {output} = await converseWithAiPrompt({prompt, history: mappedHistory});
 
     if (output) {
       await saveMessage({
         role: 'assistant',
         content: output.response,
-        sessionId,
+        sessionId: currentSessionId,
       });
     }
 
-    return output!;
+    return { ...output!, newSessionId };
   }
 );

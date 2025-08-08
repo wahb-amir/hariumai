@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,7 +16,6 @@ import { HariumLogo } from "./harium-logo";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getChatHistory } from "@/ai/flows/get-chat-history";
-import 'uuid'; // Correctly import uuid
 import { v4 as uuidv4 } from 'uuid';
 
 type Message = {
@@ -25,47 +25,49 @@ type Message = {
   type?: "text" | "image";
 };
 
-export function ChatPanel() {
+type ChatPanelProps = {
+    chatId?: string;
+}
+
+export function ChatPanel({ chatId }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [audioPlaying, setAudioPlaying] = useState<string | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const router = useRouter();
+  
+  const isNewChat = !chatId;
+  const currentSessionId = chatId || uuidv4();
 
   useEffect(() => {
     if (!authLoading) {
-        let currentSessionId = user?.uid;
-        if (!currentSessionId) {
-            currentSessionId = localStorage.getItem('anonymous_session_id') || uuidv4();
-            localStorage.setItem('anonymous_session_id', currentSessionId);
+        let currentUserId = user?.uid;
+        if (!currentUserId) {
+            currentUserId = localStorage.getItem('anonymous_user_id') || uuidv4();
+            localStorage.setItem('anonymous_user_id', currentUserId);
         }
-        setSessionId(currentSessionId);
+        setUserId(currentUserId);
     }
   }, [user, authLoading]);
 
   useEffect(() => {
     const fetchHistory = async () => {
-        if (sessionId) {
+        if (chatId) {
             setIsLoading(true);
             try {
-                const history = await getChatHistory({ sessionId });
+                const history = await getChatHistory({ sessionId: chatId });
                 const loadedMessages = history.map((item, index) => ({
                     id: `hist-${index}-${Date.now()}`,
                     role: item.role,
                     content: item.content,
                     type: 'text' as const,
                 }));
-                if(loadedMessages.length === 0) {
-                    setMessages([
-                        { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
-                    ]);
-                } else {
-                    setMessages(loadedMessages);
-                }
+                setMessages(loadedMessages);
             } catch (error) {
                  console.error("Error fetching chat history:", error);
                  toast({
@@ -73,16 +75,18 @@ export function ChatPanel() {
                     title: "Error",
                     description: "Failed to load chat history.",
                   });
-                  setMessages([
-                        { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
-                    ]);
             } finally {
                 setIsLoading(false);
             }
+        } else {
+             setMessages([
+                { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
+            ]);
+            setIsLoading(false);
         }
     };
     fetchHistory();
-  }, [sessionId, toast]);
+  }, [chatId, toast]);
 
 
   useEffect(() => {
@@ -92,7 +96,7 @@ export function ChatPanel() {
   const handleSendMessage = async (e: React.FormEvent, prompt?: string) => {
     e.preventDefault();
     const currentInput = prompt || input;
-    if (!currentInput.trim() || isLoading || !sessionId) return;
+    if (!currentInput.trim() || isLoading || !userId) return;
 
     const userMessage: Message = { id: `user-${Date.now()}`, role: "user", content: currentInput, type: "text" };
     setMessages((prev) => [...prev, userMessage]);
@@ -103,7 +107,13 @@ export function ChatPanel() {
     setIsLoading(true);
 
     try {
-        const result = await converseWithAi({ prompt: currentInput, sessionId });
+        const result = await converseWithAi({ prompt: currentInput, sessionId: currentSessionId, userId });
+        
+        if (isNewChat && result.newSessionId) {
+            router.push(`/chat/${result.newSessionId}`);
+            return;
+        }
+
         const assistantMessage: Message = { 
             id: `asst-${Date.now()}`, 
             role: "assistant", 
@@ -186,7 +196,7 @@ export function ChatPanel() {
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-3xl mx-auto py-8">
-          {messages.map((message) => (
+          {messages.map((message, index) => (
             <div key={message.id} className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
               {message.role === "assistant" && (
                  <Avatar className="h-8 w-8 border-none bg-transparent">
@@ -216,7 +226,7 @@ export function ChatPanel() {
                     <p className="text-sm leading-relaxed break-words">{message.content}</p>
                 )}
                 
-                {message.role === 'assistant' && !isLoading && (
+                {message.role === 'assistant' && !isLoading && index === messages.length - 1 && (
                     <div className="mt-2 flex items-center gap-2">
                          {message.content.startsWith("Visit this page") ? (
                             <Button asChild variant="outline" size="sm">
@@ -294,7 +304,7 @@ export function ChatPanel() {
                 <Textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Send a message or attach an image..."
+                    placeholder="Send a message..."
                     className="flex-1 resize-none rounded-full bg-secondary border-none pl-4 pr-24 py-3 min-h-0 h-12"
                     rows={1}
                     onKeyDown={(e) => {
@@ -303,7 +313,7 @@ export function ChatPanel() {
                         handleSendMessage(e);
                     }
                     }}
-                    disabled={isLoading}
+                    disabled={isLoading || !userId}
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled={isLoading}><Paperclip className="h-4 w-4" /></Button>

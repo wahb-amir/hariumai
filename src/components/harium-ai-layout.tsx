@@ -30,6 +30,8 @@ import {
   MessageSquare,
   Image as ImageIcon,
   LogIn,
+  PlusCircle,
+  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -39,6 +41,9 @@ import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { getAuth, signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { app } from "@/lib/firebase";
+import { getChatSessions } from "@/ai/flows/get-chat-sessions";
+import type { GetChatSessionsOutput } from "@/ai/flows/get-chat-sessions";
+import { v4 as uuidv4 } from "uuid";
 
 
 function AuthWrapper({ children }: { children: React.ReactNode}) {
@@ -52,10 +57,43 @@ function AuthWrapper({ children }: { children: React.ReactNode}) {
 function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
   const [voiceResponses, setVoiceResponses] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
+  const [chatSessions, setChatSessions] = React.useState<GetChatSessionsOutput>([]);
   const pathname = usePathname();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const [userId, setUserId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!authLoading) {
+      let currentUserId = user?.uid;
+      if (!currentUserId) {
+        currentUserId = localStorage.getItem('anonymous_user_id') || uuidv4();
+        localStorage.setItem('anonymous_user_id', currentUserId);
+      }
+      setUserId(currentUserId);
+    }
+  }, [user, authLoading]);
+
+  React.useEffect(() => {
+    const fetchSessions = async () => {
+      if (userId) {
+        try {
+          const sessions = await getChatSessions({ userId });
+          setChatSessions(sessions);
+        } catch (error) {
+          console.error("Failed to fetch chat sessions:", error);
+        }
+      }
+    };
+    fetchSessions();
+    // Add a listener for when new chats are created
+    const handleStorageChange = () => fetchSessions();
+    window.addEventListener('chat-updated', handleStorageChange);
+    return () => {
+        window.removeEventListener('chat-updated', handleStorageChange);
+    }
+  }, [userId, pathname]);
 
   React.useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);
@@ -70,6 +108,7 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
                 title: 'Signed Out',
                 description: 'You have been successfully signed out.'
             });
+            localStorage.removeItem('anonymous_user_id');
             router.push('/login');
         }
     } catch (error) {
@@ -95,15 +134,32 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
         <SidebarContent>
           <SidebarMenu>
             <SidebarGroup>
+                <SidebarMenuItem>
+                    <Link href="/" className="w-full">
+                        <SidebarMenuButton>
+                        <PlusCircle />
+                        New Chat
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+            </SidebarGroup>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel className="flex items-center gap-2"><History /> Recent Chats</SidebarGroupLabel>
+              {chatSessions.map(session => (
+                 <SidebarMenuItem key={session.sessionId}>
+                    <Link href={`/chat/${session.sessionId}`} className="w-full">
+                        <SidebarMenuButton isActive={pathname === `/chat/${session.sessionId}`}>
+                            <MessageSquare />
+                            <span className="truncate">{session.title}</span>
+                        </SidebarMenuButton>
+                    </Link>
+                </SidebarMenuItem>
+              ))}
+            </SidebarGroup>
+            <SidebarSeparator />
+            <SidebarGroup>
               <SidebarGroupLabel>Features</SidebarGroupLabel>
-              <SidebarMenuItem>
-                 <Link href="/" className="w-full">
-                    <SidebarMenuButton isActive={pathname === '/'}>
-                      <MessageSquare />
-                      AI Chat
-                    </SidebarMenuButton>
-                 </Link>
-              </SidebarMenuItem>
               <SidebarMenuItem>
                  <Link href="/generation/image" className="w-full">
                     <SidebarMenuButton isActive={pathname === '/generation/image'}>

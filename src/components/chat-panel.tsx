@@ -63,13 +63,6 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
   }, [user, authLoading]);
 
   useEffect(() => {
-    toast({
-        title: "Image Notice",
-        description: "Generated images are not saved in your chat history.",
-    });
-  }, [toast]);
-
-  useEffect(() => {
     const fetchHistory = async () => {
         if (chatId) {
             setIsLoading(true);
@@ -130,6 +123,13 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     try {
         const result = await converseWithAi({ prompt: currentInput, sessionId: currentSessionId, userId });
         
+        if (result.responseType === 'image') {
+          toast({
+              title: "Image Generated",
+              description: "Images are not saved in your chat history.",
+          });
+        }
+
         if (isNewChat && result.newSessionId) {
             router.push(`/chat/${result.newSessionId}`);
             return;
@@ -362,3 +362,5 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     </div>
   );
 }
+
+    

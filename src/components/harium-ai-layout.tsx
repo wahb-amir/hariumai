@@ -45,15 +45,6 @@ import { getChatSessions } from "@/ai/flows/get-chat-sessions";
 import type { GetChatSessionsOutput } from "@/ai/flows/get-chat-sessions";
 import { v4 as uuidv4 } from "uuid";
 
-
-function AuthWrapper({ children }: { children: React.ReactNode}) {
-    return (
-        <AuthProvider>
-            {children}
-        </AuthProvider>
-    )
-}
-
 function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
   const [voiceResponses, setVoiceResponses] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
@@ -75,25 +66,27 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
     }
   }, [user, authLoading]);
 
-  React.useEffect(() => {
-    const fetchSessions = async () => {
-      if (userId) {
-        try {
-          const sessions = await getChatSessions({ userId });
-          setChatSessions(sessions);
-        } catch (error) {
-          console.error("Failed to fetch chat sessions:", error);
-        }
+  const fetchSessions = React.useCallback(async () => {
+    if (userId) {
+      try {
+        const sessions = await getChatSessions({ userId });
+        setChatSessions(sessions);
+      } catch (error) {
+        console.error("Failed to fetch chat sessions:", error);
       }
-    };
-    fetchSessions();
-    // Add a listener for when new chats are created
-    const handleStorageChange = () => fetchSessions();
-    window.addEventListener('chat-updated', handleStorageChange);
-    return () => {
-        window.removeEventListener('chat-updated', handleStorageChange);
     }
-  }, [userId, pathname]);
+  }, [userId]);
+
+  React.useEffect(() => {
+    fetchSessions();
+    const handleChatUpdated = () => {
+      fetchSessions();
+    };
+    window.addEventListener('chat-updated', handleChatUpdated);
+    return () => {
+        window.removeEventListener('chat-updated', handleChatUpdated);
+    };
+  }, [userId, fetchSessions]);
 
   React.useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);

@@ -40,7 +40,10 @@ const converseWithAiPrompt = ai.definePrompt({
         content: z.string(),
     })),
   })},
-  output: {schema: ConverseWithAiOutputSchema},
+  output: {schema: z.object({
+      response: z.string(),
+      isImageQuery: z.boolean(),
+  })},
   prompt: `You are a helpful AI assistant. Analyze the user's prompt and determine if they are asking to generate an image.
 
 If the prompt is asking to create, generate, draw, or show an image, picture, or photo of something, set the isImageQuery field to true and set the response field to "Visit this page to create your dedicated image:".
@@ -73,8 +76,10 @@ const converseWithAiFlow = ai.defineFlow(
         await createSession({ sessionId: currentSessionId, userId, title });
         newSessionId = currentSessionId;
         // Dispatch an event to notify the UI that the chat list has been updated.
-        // This is a client-side concept, so we can't do it here directly.
-        // The front-end will need to poll or use a subscription to update the list.
+        const event = new Event('chat-updated');
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(event);
+        }
     }
 
     await saveMessage({

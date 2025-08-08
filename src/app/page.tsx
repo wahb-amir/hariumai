@@ -1,5 +1,10 @@
 import { HariumAiLayout } from '@/components/harium-ai-layout';
+import { ChatPanel } from '@/components/chat-panel';
 
-export default function Home({ params }: { params: { id?: string }}) {
-  return <HariumAiLayout key={params.id} />;
+export default function Home() {
+  return (
+    <HariumAiLayout>
+        <ChatPanel />
+    </HariumAiLayout>
+  );
 }

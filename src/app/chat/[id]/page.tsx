@@ -4,7 +4,7 @@ import { ChatPanel } from '@/components/chat-panel';
 export default function ChatPage({ params }: { params: { id: string } }) {
   return (
     <HariumAiLayout>
-        <ChatPanel chatId={params.id} />
+        <ChatPanel key={params.id} chatId={params.id} />
     </HariumAiLayout>
   );
 }

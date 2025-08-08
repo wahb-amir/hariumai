@@ -41,8 +41,14 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   
-  const isNewChat = !chatId;
-  const currentSessionId = chatId || uuidv4();
+  const [currentSessionId, setCurrentSessionId] = useState(chatId || uuidv4());
+
+  useEffect(() => {
+    if (chatId) {
+      setCurrentSessionId(chatId);
+    }
+  }, [chatId]);
+
 
   useEffect(() => {
     if (!authLoading) {
@@ -61,13 +67,19 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
             setIsLoading(true);
             try {
                 const history = await getChatHistory({ sessionId: chatId });
-                const loadedMessages = history.map((item, index) => ({
-                    id: `hist-${index}-${Date.now()}`,
-                    role: item.role,
-                    content: item.content,
-                    type: 'text' as const,
-                }));
-                setMessages(loadedMessages);
+                if (history.length > 0) {
+                    const loadedMessages = history.map((item, index) => ({
+                        id: `hist-${index}-${Date.now()}`,
+                        role: item.role,
+                        content: item.content,
+                        type: 'text' as const,
+                    }));
+                    setMessages(loadedMessages);
+                } else {
+                    setMessages([
+                        { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
+                    ]);
+                }
             } catch (error) {
                  console.error("Error fetching chat history:", error);
                  toast({
@@ -97,6 +109,8 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     e.preventDefault();
     const currentInput = prompt || input;
     if (!currentInput.trim() || isLoading || !userId) return;
+
+    const isNewChat = !chatId;
 
     const userMessage: Message = { id: `user-${Date.now()}`, role: "user", content: currentInput, type: "text" };
     setMessages((prev) => [...prev, userMessage]);

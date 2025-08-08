@@ -9,10 +9,12 @@
  */
 
 import {ai} from '@/ai/genkit';
+import { saveMessage } from '@/services/chat-history';
 import {z} from 'genkit';
 
 const ConverseWithAiInputSchema = z.object({
   prompt: z.string().describe('The prompt for the AI conversation.'),
+  sessionId: z.string().describe('The user\'s session ID.'),
 });
 export type ConverseWithAiInput = z.infer<typeof ConverseWithAiInputSchema>;
 
@@ -28,7 +30,7 @@ export async function converseWithAi(input: ConverseWithAiInput): Promise<Conver
 
 const converseWithAiPrompt = ai.definePrompt({
   name: 'converseWithAiPrompt',
-  input: {schema: ConverseWithAiInputSchema},
+  input: {schema: z.object({prompt: z.string()})},
   output: {schema: ConverseWithAiOutputSchema},
   prompt: `You are a helpful AI assistant. Analyze the user's prompt and determine if they are asking to generate an image.
 
@@ -46,8 +48,22 @@ const converseWithAiFlow = ai.defineFlow(
     inputSchema: ConverseWithAiInputSchema,
     outputSchema: ConverseWithAiOutputSchema,
   },
-  async input => {
-    const {output} = await converseWithAiPrompt(input);
+  async ({prompt, sessionId}) => {
+    await saveMessage({
+      role: 'user',
+      content: prompt,
+      sessionId,
+    });
+    const {output} = await converseWithAiPrompt({prompt});
+
+    if (output) {
+      await saveMessage({
+        role: 'assistant',
+        content: output.response,
+        sessionId,
+      });
+    }
+
     return output!;
   }
 );

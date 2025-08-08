@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
@@ -22,9 +21,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const pathname = usePathname();
 
   useEffect(() => {
-    // We need to make sure firebase auth is initialized before we can use it.
-    // We can do this by just calling getAuth() on the app instance.
     if (!app) {
+        setLoading(false);
         return;
     }
     const auth = getAuth(app);

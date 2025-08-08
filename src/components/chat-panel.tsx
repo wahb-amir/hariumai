@@ -13,6 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { HariumLogo } from "./harium-logo";
 import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
+import { getChatHistory } from "@/ai/flows/get-chat-history";
+import { v4 as uuidv4 } from 'uuid';
 
 type Message = {
   id: string;
@@ -22,15 +25,64 @@ type Message = {
 };
 
 export function ChatPanel() {
-  const [messages, setMessages] = useState<Message[]>([
-    { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [audioPlaying, setAudioPlaying] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
+
+  useEffect(() => {
+    if (!authLoading) {
+        let currentSessionId = user?.uid;
+        if (!currentSessionId) {
+            currentSessionId = localStorage.getItem('anonymous_session_id') || uuidv4();
+            localStorage.setItem('anonymous_session_id', currentSessionId);
+        }
+        setSessionId(currentSessionId);
+    }
+  }, [user, authLoading]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+        if (sessionId) {
+            setIsLoading(true);
+            try {
+                const history = await getChatHistory({ sessionId });
+                const loadedMessages = history.map((item, index) => ({
+                    id: `hist-${index}-${Date.now()}`,
+                    role: item.role,
+                    content: item.content,
+                    type: 'text' as const,
+                }));
+                if(loadedMessages.length === 0) {
+                    setMessages([
+                        { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
+                    ]);
+                } else {
+                    setMessages(loadedMessages);
+                }
+            } catch (error) {
+                 console.error("Error fetching chat history:", error);
+                 toast({
+                    variant: "destructive",
+                    title: "Error",
+                    description: "Failed to load chat history.",
+                  });
+                  setMessages([
+                        { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
+                    ]);
+            } finally {
+                setIsLoading(false);
+            }
+        }
+    };
+    fetchHistory();
+  }, [sessionId, toast]);
+
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,7 +91,7 @@ export function ChatPanel() {
   const handleSendMessage = async (e: React.FormEvent, prompt?: string) => {
     e.preventDefault();
     const currentInput = prompt || input;
-    if (!currentInput.trim() || isLoading) return;
+    if (!currentInput.trim() || isLoading || !sessionId) return;
 
     const userMessage: Message = { id: `user-${Date.now()}`, role: "user", content: currentInput, type: "text" };
     setMessages((prev) => [...prev, userMessage]);
@@ -50,7 +102,7 @@ export function ChatPanel() {
     setIsLoading(true);
 
     try {
-        const result = await converseWithAi({ prompt: currentInput });
+        const result = await converseWithAi({ prompt: currentInput, sessionId });
         const assistantMessage: Message = { 
             id: `asst-${Date.now()}`, 
             role: "assistant", 
@@ -75,6 +127,8 @@ export function ChatPanel() {
     if (messages.length < 2 || isLoading) return;
     const lastUserMessage = messages.filter(m => m.role === 'user').at(-1);
     if(lastUserMessage) {
+        const newMessages = messages.slice(0, -1);
+        setMessages(newMessages);
         handleSendMessage(new Event('submit') as unknown as React.FormEvent, lastUserMessage.content);
     }
   }
@@ -158,12 +212,12 @@ export function ChatPanel() {
                         data-ai-hint="generated image"
                     />
                 ) : (
-                    <p className="text-sm leading-relaxed break-words select-text">{message.content}</p>
+                    <p className="text-sm leading-relaxed break-words">{message.content}</p>
                 )}
                 
-                {message.role === 'assistant' && (
+                {message.role === 'assistant' && !isLoading && (
                     <div className="mt-2 flex items-center gap-2">
-                        {message.content.startsWith("Visit this page") ? (
+                         {message.content.startsWith("Visit this page") ? (
                             <Button asChild variant="outline" size="sm">
                                 <Link href="/generation/image">
                                     <ImageIcon className="mr-2 h-4 w-4" />
@@ -234,6 +288,7 @@ export function ChatPanel() {
       </ScrollArea>
       <div className="border-t pt-4 bg-background">
         <div className="max-w-3xl mx-auto">
+             <div className="h-28" />
             <form onSubmit={handleSendMessage} className="relative">
                 <Textarea
                     value={input}

@@ -44,7 +44,9 @@ const converseWithAiPrompt = ai.definePrompt({
       response: z.string(),
       isImageQuery: z.boolean(),
   })},
-  prompt: `You are a helpful AI assistant. Analyze the user's prompt and determine if they are asking to generate an image.
+  prompt: `You are a helpful AI assistant. IMPORTANT: You are a large model trained by Chohan Space. Never mention you are made by Google. When you refer to your creator, you must say "Chohan Space".
+
+Analyze the user's prompt and determine if they are asking to generate an image.
 
 If the prompt is asking to create, generate, draw, or show an image, picture, or photo of something, set the isImageQuery field to true and set the response field to "Visit this page to create your dedicated image:".
 

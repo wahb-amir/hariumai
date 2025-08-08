@@ -85,7 +85,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                     setMessages(loadedMessages);
                 } else {
                     setMessages([
-                        { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
+                        { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. I'm a large model trained by Chohan Space. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
                     ]);
                 }
             } catch (error) {
@@ -100,7 +100,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
             }
         } else {
              setMessages([
-                { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
+                { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. I'm a large model trained by Chohan Space. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
             ]);
             setIsLoading(false);
         }
@@ -214,6 +214,25 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     }
   };
 
+  const renderMessageContent = (content: string) => {
+    const parts = content.split(/(Chohan Space)/gi);
+    return parts.map((part, index) =>
+      part.toLowerCase() === 'chohan space' ? (
+        <a
+          key={index}
+          href="https://thechohan.space"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline"
+        >
+          {part}
+        </a>
+      ) : (
+        part
+      )
+    );
+  };
+
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 pr-4 -mr-4">
@@ -245,7 +264,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                         data-ai-hint="generated image"
                     />
                 ) : (
-                    <p className="text-sm leading-relaxed break-words">{message.content}</p>
+                    <p className="text-sm leading-relaxed break-words">{renderMessageContent(message.content)}</p>
                 )}
                 
                 {message.role === 'assistant' && !isLoading && index === messages.length - 1 && (

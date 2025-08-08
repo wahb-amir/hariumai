@@ -36,7 +36,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { ChatPanel } from "./chat-panel";
 import { HariumLogo } from "./harium-logo";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { getAuth, signOut } from "firebase/auth";

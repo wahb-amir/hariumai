@@ -15,6 +15,7 @@ import { HariumLogo } from "./harium-logo";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getChatHistory } from "@/ai/flows/get-chat-history";
+import 'uuid'; // Correctly import uuid
 import { v4 as uuidv4 } from 'uuid';
 
 type Message = {

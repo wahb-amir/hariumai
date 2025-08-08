@@ -10,25 +10,12 @@
 
 import { ai } from '@/ai/genkit';
 import { getHistory } from '@/services/chat-history';
-import { z } from 'genkit';
-
-export const GetChatHistoryInputSchema = z.object({
-    sessionId: z.string().describe("The session ID for the user whose history should be retrieved."),
-});
-export type GetChatHistoryInput = z.infer<typeof GetChatHistoryInputSchema>;
-
-export const GetChatHistoryOutputSchema = z.array(
-    z.object({
-        role: z.enum(['user', 'assistant']),
-        content: z.string(),
-    })
-).describe("The chat history.");
-export type GetChatHistoryOutput = z.infer<typeof GetChatHistoryOutputSchema>;
+import type { GetChatHistoryInput, GetChatHistoryOutput } from '@/ai/schemas/chat-history';
+import { GetChatHistoryInputSchema, GetChatHistoryOutputSchema } from '@/ai/schemas/chat-history';
 
 export async function getChatHistory(input: GetChatHistoryInput): Promise<GetChatHistoryOutput> {
     return getChatHistoryFlow(input);
 }
-
 
 const getChatHistoryFlow = ai.defineFlow(
   {
@@ -38,6 +25,8 @@ const getChatHistoryFlow = ai.defineFlow(
   },
   async ({ sessionId }) => {
     const history = await getHistory(sessionId);
+    // Important: The `getHistory` function from mongodb returns documents with `_id`, which is not serializable.
+    // We must map the results to a plain object that matches the output schema.
     return history.map(item => ({
         role: item.role,
         content: item.content,

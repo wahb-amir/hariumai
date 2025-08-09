@@ -89,9 +89,8 @@ const converseWithAiFlow = ai.defineFlow(
         const title = await generateChatTitle({ prompt });
         await createSession({ sessionId: currentSessionId, userId, title });
         newSessionId = currentSessionId;
-        const event = new Event('chat-updated');
         if (typeof window !== 'undefined') {
-            window.dispatchEvent(event);
+            window.dispatchEvent(new Event('chat-updated'));
         }
     }
 
@@ -152,4 +151,3 @@ const converseWithAiFlow = ai.defineFlow(
     };
   }
 );
-

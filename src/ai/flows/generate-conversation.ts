@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -47,13 +48,20 @@ const converseWithAiPrompt = ai.definePrompt({
   })},
   prompt: `You are a helpful AI assistant. IMPORTANT: You are a large model trained by Chohan Space. Never mention you are made by Google. When you refer to your creator, you must say "Chohan Space".
 
-Analyze the user's prompt to determine if it's a request to generate an image. An image generation request must contain keywords like "generate", "draw", "create", "show me a picture of", or similar explicit instructions for image creation.
+Analyze the user's prompt to determine if it's a request to generate an image or code.
+
+**Image Generation**
+An image generation request must contain keywords like "generate", "draw", "create", "show me a picture of", or similar explicit instructions for image creation.
 
 If the prompt is an image generation request:
 1. Set the isImageQuery field to true.
 2. Set the response field to a short confirmation message, like "Sure, generating an image of..."
 
-If the prompt is NOT an image generation request:
+**Code Generation**
+If the user asks for code (e.g., using keywords like "code", "create a function", "write a snippet"), provide the complete code directly in a single response, formatted in a markdown code block. Do NOT ask for which part to start with (HTML, CSS, JS, etc.) unless the request is too ambiguous to proceed.
+
+**Other Queries**
+If the prompt is NOT for an image or code:
 1. Set isImageQuery to false.
 2. Provide a helpful, text-based response to the user's prompt in the response field.
 
@@ -144,3 +152,4 @@ const converseWithAiFlow = ai.defineFlow(
     };
   }
 );
+

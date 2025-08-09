@@ -84,8 +84,9 @@ const converseWithAiFlow = ai.defineFlow(
     let currentSessionId = sessionId;
     let newSessionId: string | undefined;
 
-    const session = await getSession(currentSessionId);
-    if (!session) {
+    const isNewChat = !(await getSession(currentSessionId));
+
+    if (isNewChat) {
         const title = await generateChatTitle({ prompt });
         await createSession({ sessionId: currentSessionId, userId, title });
         newSessionId = currentSessionId;
@@ -125,7 +126,7 @@ const converseWithAiFlow = ai.defineFlow(
         const imageResult = await generateImageFromText({ prompt });
         await saveMessage({
             role: 'assistant',
-            content: "Image generated",
+            content: imageResult.imageUrl, // Save the image data URI
             sessionId: currentSessionId,
         });
 

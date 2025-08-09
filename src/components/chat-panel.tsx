@@ -74,7 +74,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                         role: item.role,
                         content: item.content,
                         // This part needs to be smarter if we save images
-                        type: 'text' as const, 
+                        type: item.content.startsWith('data:image') ? 'image' : 'text' as const, 
                     }));
                     setMessages(loadedMessages);
                 } else {
@@ -91,9 +91,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                 setIsLoading(false);
             }
         } else {
-             setMessages([
-                { id: 'start-1', role: 'assistant', content: "Hello, I'm Harium, your friendly assistant. I'm a large model trained by Chohan Space. How can I help you today? ✨ You can ask me questions or generate images!", type: "text"}
-            ]);
+            setMessages([]);
             setIsLoading(false);
         }
     };
@@ -108,12 +106,14 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
   const handleSendMessage = async (e: React.FormEvent, prompt?: string) => {
     e.preventDefault();
     const currentInput = prompt || input;
-    if (!currentInput.trim() || isLoading || !userId) return;
+    if (!currentInput.trim() || !userId) return;
 
     const isNewChat = !chatId;
 
     const userMessage: Message = { id: `user-${Date.now()}`, role: "user", content: currentInput, type: "text" };
-    setMessages((prev) => [...prev, userMessage]);
+    
+    // For new chats, we want to clear the placeholder and only show the user message
+    setMessages(prev => isNewChat ? [userMessage] : [...prev, userMessage]);
     
     if(!prompt) {
         setInput("");
@@ -132,6 +132,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
 
         if (isNewChat && result.newSessionId) {
             router.push(`/chat/${result.newSessionId}`);
+            // Don't add the assistant message here, it will be loaded by the new page
             return;
         }
 
@@ -236,6 +237,13 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-3xl mx-auto py-8">
+            {!chatId && messages.length === 0 && !isLoading && (
+                 <div className="flex flex-col items-center justify-center h-full pt-24">
+                     <HariumLogo className="h-24 w-24" />
+                     <h2 className="mt-6 text-2xl font-black">Hey, I'm Harium.</h2>
+                     <p className="text-muted-foreground">What do you want to know?</p>
+                 </div>
+            )}
           {messages.map((message, index) => (
             <div key={message.id} className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
               {message.role === "assistant" && (
@@ -314,7 +322,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
               )}
             </div>
           ))}
-           {isLoading && (
+           {isLoading && messages.length > 0 && (
             <div className="flex items-start gap-4">
                <Avatar className="h-8 w-8 border-none bg-transparent">
                   <AvatarFallback className="bg-transparent text-transparent">
@@ -362,5 +370,3 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     </div>
   );
 }
-
-    

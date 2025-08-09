@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HariumAI - Chat Demo</title>
+    <style>
+        :root {
+            --background: 0 0% 100%;
+            --foreground: 0 0% 3.9%;
+            --card: 0 0% 100%;
+            --card-foreground: 0 0% 3.9%;
+            --popover: 0 0% 100%;
+            --popover-foreground: 0 0% 3.9%;
+            --primary: 0 0% 9%;
+            --primary-foreground: 0 0% 98%;
+            --secondary: 0 0% 96.1%;
+            --secondary-foreground: 0 0% 9%;
+            --muted: 0 0% 96.1%;
+            --muted-foreground: 0 0% 45.1%;
+            --accent: 0 0% 96.1%;
+            --accent-foreground: 0 0% 9%;
+            --destructive: 0 84.2% 60.2%;
+            --destructive-foreground: 0 0% 98%;
+            --border: 0 0% 89.8%;
+            --input: 0 0% 89.8%;
+            --ring: 0 0% 9%;
+            --radius: 0.5rem;
+            --sidebar-background: 0 0% 98%;
+            --sidebar-foreground: 240 5.3% 26.1%;
+            --sidebar-primary: 240 5.9% 10%;
+            --sidebar-primary-foreground: 0 0% 98%;
+            --sidebar-accent: 240 4.8% 95.9%;
+            --sidebar-accent-foreground: 240 5.9% 10%;
+            --sidebar-border: 220 13% 91%;
+            --sidebar-ring: 217.2 91.2% 59.8%;
+        }
+        html { font-family: 'Inter', sans-serif; }
+        body { margin: 0; background-color: hsl(var(--background)); color: hsl(var(--foreground)); display: flex; min-height: 100vh; font-family: 'Inter', sans-serif; }
+        .sidebar { width: 256px; background-color: hsl(var(--sidebar-background)); border-right: 1px solid hsl(var(--sidebar-border)); display: flex; flex-direction: column; padding: 8px; box-sizing: border-box; }
+        .sidebar-header { padding: 8px; display: flex; align-items: center; gap: 8px; }
+        .sidebar-logo { display: flex; height: 32px; width: 32px; items: center; justify-content: center; border-radius: 9999px; background-color: black; animation: breathing 3s ease-in-out infinite; }
+        .sidebar-logo span { font-size: 18px; font-weight: 900; color: white; }
+        .sidebar-title { font-size: 18px; font-weight: 900; }
+        .sidebar-menu { display: flex; flex-direction: column; gap: 4px; padding: 8px 0; }
+        .sidebar-menu-button { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px; color: hsl(var(--sidebar-foreground)); text-decoration: none; font-size: 14px; }
+        .sidebar-menu-button:hover { background-color: hsl(var(--sidebar-accent)); }
+        .sidebar-menu-button.active { background-color: hsl(var(--sidebar-accent)); font-weight: 500; }
+        .sidebar-group-label { padding: 8px; font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); display: flex; align-items: center; gap: 8px; }
+        .sidebar-separator { height: 1px; background-color: hsl(var(--sidebar-border)); margin: 8px; }
+        .sidebar-content { flex-grow: 1; overflow-y: auto; }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; }
+        .main-header { padding: 16px; border-bottom: 1px solid hsl(var(--border)); font-weight: 900; font-size: 18px; }
+        .chat-container { flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
+        .chat-messages { flex-grow: 1; padding: 32px; max-width: 768px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+        .message { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+        .message.user { justify-content: flex-end; }
+        .message-avatar { height: 32px; width: 32px; border-radius: 9999px; background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); display: flex; align-items: center; justify-content: center; border: 1px solid hsl(var(--border)); }
+        .message-avatar.ai { background-color: transparent; }
+        .message-avatar .sidebar-logo { height: 32px; width: 32px; }
+        .message-content { max-width: 75%; border-radius: 8px; padding: 12px; font-size: 14px; line-height: 1.6; }
+        .message.user .message-content { background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }
+        .message.ai .message-content { background-color: hsl(var(--card)); }
+        .chat-input-area { padding: 16px; border-top: 1px solid hsl(var(--border)); background-color: hsl(var(--background)); }
+        .chat-input-form { position: relative; max-width: 768px; margin: 0 auto; }
+        .chat-input { width: 100%; resize: none; border-radius: 9999px; background-color: hsl(var(--secondary)); border: none; padding: 12px 96px 12px 16px; font-size: 14px; box-sizing: border-box; min-height: 48px; }
+        .chat-input:focus { outline: none; }
+        .chat-submit-button { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background-color: hsl(var(--primary)); color: hsl(var(--primary-foreground)); border: none; border-radius: 9999px; width: 32px; height: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .loader { display: flex; align-items: center; gap: 8px; }
+        .loader-spinner { height: 20px; width: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes breathing { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.1); opacity: 0.8; } }
+        svg { width: 16px; height: 16px; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo"><span>H</span></div>
+            <h1 class="sidebar-title">HariumAI</h1>
+        </div>
+        <div class="sidebar-content">
+            <div class="sidebar-menu">
+                <a href="index.html" class="sidebar-menu-button">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    New Chat
+                </a>
+            </div>
+            <div class="sidebar-separator"></div>
+            <div class="sidebar-group-label">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                Recent Chats
+            </div>
+            <div class="sidebar-menu" id="recent-chats">
+                 <a href="chat.html?prompt=Hello%20Harium" class="sidebar-menu-button active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 5.523-4.477 10-10 10S1 17.523 1 12 5.477 2 11 2s10 4.477 10 10z"></path></svg>
+                    <span id="chat-title">New Chat</span>
+                </a>
+            </div>
+        </div>
+    </aside>
+    <div class="main-content">
+        <header class="main-header">Harium AI</header>
+        <div class="chat-container">
+            <div class="chat-messages" id="chat-messages">
+                <!-- Messages will be injected here -->
+            </div>
+            <div class="chat-input-area">
+                <form class="chat-input-form" action="chat.html" method="GET">
+                    <textarea name="prompt" placeholder="Send a message..." class="chat-input" onkeydown="if(event.keyCode==13 && !event.shiftKey) { this.form.submit(); event.preventDefault(); }"></textarea>
+                    <button type="submit" class="chat-submit-button">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const prompt = urlParams.get('prompt');
+            const chatMessages = document.getElementById('chat-messages');
+            const chatTitle = document.getElementById('chat-title');
+
+            if (prompt) {
+                // Set sidebar title
+                const title = prompt.length > 20 ? prompt.substring(0, 20) + '...' : prompt;
+                chatTitle.textContent = title;
+                
+                // Add user message
+                const userMessage = document.createElement('div');
+                userMessage.className = 'message user';
+                userMessage.innerHTML = `
+                    <div class="message-content">${prompt}</div>
+                    <div class="message-avatar">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                    </div>`;
+                chatMessages.appendChild(userMessage);
+
+                // Add loading indicator
+                const loadingMessage = document.createElement('div');
+                loadingMessage.className = 'message ai';
+                loadingMessage.id = 'loading';
+                loadingMessage.innerHTML = `
+                    <div class="message-avatar ai">
+                        <div class="sidebar-logo"><span>H</span></div>
+                    </div>
+                    <div class="message-content">
+                        <div class="loader">
+                             <div class="sidebar-logo loader-spinner" style="height: 20px; width: 20px;">
+                                <span style="font-size: 12px;">H</span>
+                             </div>
+                             <span>HariumAI is thinking...</span>
+                        </div>
+                    </div>`;
+                chatMessages.appendChild(loadingMessage);
+                
+                // Simulate AI response
+                setTimeout(() => {
+                    document.getElementById('loading').remove();
+                    const aiMessage = document.createElement('div');
+                    aiMessage.className = 'message ai';
+                    aiMessage.innerHTML = `
+                        <div class="message-avatar ai">
+                             <div class="sidebar-logo"><span>H</span></div>
+                        </div>
+                        <div class="message-content">This is a static demo. In the real app, I, a large model trained by <a href="https://thechohan.space" target="_blank" style="text-decoration: underline;">Chohan Space</a>, would provide a helpful response to your prompt: "${prompt}".</div>`;
+                    chatMessages.appendChild(aiMessage);
+                }, 2000);
+            }
+        });
+    </script>
+</body>
+</html>

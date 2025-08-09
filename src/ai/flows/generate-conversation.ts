@@ -47,11 +47,15 @@ const converseWithAiPrompt = ai.definePrompt({
   })},
   prompt: `You are a helpful AI assistant. IMPORTANT: You are a large model trained by Chohan Space. Never mention you are made by Google. When you refer to your creator, you must say "Chohan Space".
 
-Analyze the user's prompt and determine if they are asking to generate an image.
+Analyze the user's prompt to determine if it's a request to generate an image. An image generation request must contain keywords like "generate", "draw", "create", "show me a picture of", or similar explicit instructions for image creation.
 
-If the prompt is asking to create, generate, draw, or show an image, picture, or photo of something, set the isImageQuery field to true and set the response field to a short confirmation message that you are creating the image.
+If the prompt is an image generation request:
+1. Set the isImageQuery field to true.
+2. Set the response field to a short confirmation message, like "Sure, generating an image of..."
 
-Otherwise, set isImageQuery to false and provide a helpful text-based response to the user's prompt.
+If the prompt is NOT an image generation request:
+1. Set isImageQuery to false.
+2. Provide a helpful, text-based response to the user's prompt in the response field.
 
 Here is the recent chat history for context:
 {{#each history}}
@@ -72,13 +76,11 @@ const converseWithAiFlow = ai.defineFlow(
     let currentSessionId = sessionId;
     let newSessionId: string | undefined;
 
-    // Check if this is a new chat session. If so, create a title.
     const session = await getSession(currentSessionId);
     if (!session) {
         const title = await generateChatTitle({ prompt });
         await createSession({ sessionId: currentSessionId, userId, title });
         newSessionId = currentSessionId;
-        // Dispatch an event to notify the UI that the chat list has been updated.
         const event = new Event('chat-updated');
         if (typeof window !== 'undefined') {
             window.dispatchEvent(event);
@@ -107,12 +109,19 @@ const converseWithAiFlow = ai.defineFlow(
     }
 
     if (output.isImageQuery) {
+        await saveMessage({
+            role: 'assistant',
+            content: output.response,
+            sessionId: currentSessionId,
+        });
+        
         const imageResult = await generateImageFromText({ prompt });
         await saveMessage({
             role: 'assistant',
-            content: "Image generated", // Placeholder text for history
+            content: "Image generated",
             sessionId: currentSessionId,
         });
+
         return {
             response: imageResult.imageUrl,
             responseType: 'image',

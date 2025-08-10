@@ -30,6 +30,44 @@ type ChatPanelProps = {
     chatId?: string;
 }
 
+function Typewriter({ text }: { text: string }) {
+  const [displayedText, setDisplayedText] = useState("");
+  const [showCursor, setShowCursor] = useState(true);
+
+  useEffect(() => {
+    setDisplayedText("");
+    let i = 0;
+    const intervalId = setInterval(() => {
+      if (i < text.length) {
+        setDisplayedText((prev) => prev + text.charAt(i));
+        i++;
+      } else {
+        clearInterval(intervalId);
+      }
+    }, 20); // Adjust speed of typing here
+
+    return () => clearInterval(intervalId);
+  }, [text]);
+
+  useEffect(() => {
+    const cursorInterval = setInterval(() => {
+        if (displayedText.length === text.length) {
+            setShowCursor(prev => !prev);
+        }
+    }, 500); // Cursor blink speed
+
+    return () => clearInterval(cursorInterval);
+  }, [displayedText, text]);
+
+  return (
+    <p className="text-sm leading-relaxed break-words">
+      {displayedText}
+      {displayedText.length < text.length ? <span className="text-xl ml-1">●</span> : (showCursor && <span className="text-xl ml-1 animate-pulse">●</span>)}
+    </p>
+  );
+}
+
+
 export function ChatPanel({ chatId }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -271,7 +309,13 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                         data-ai-hint="generated image"
                     />
                 ) : (
-                    <p className="text-sm leading-relaxed break-words">{renderMessageContent(message.content)}</p>
+                    <>
+                    {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
+                        <Typewriter text={message.content} />
+                    ) : (
+                        <p className="text-sm leading-relaxed break-words">{renderMessageContent(message.content)}</p>
+                    )}
+                    </>
                 )}
                 
                 {message.role === 'assistant' && !isLoading && index === messages.length - 1 && (

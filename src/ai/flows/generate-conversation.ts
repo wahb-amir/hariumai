@@ -38,7 +38,8 @@ const converseWithAiPrompt = ai.definePrompt({
   name: 'converseWithAiPrompt',
   input: {schema: z.object({
     prompt: z.string(),
-    chatMode: z.enum(['chit-chat', 'search-web', 'deep-research']),
+    isSearchWeb: z.boolean(),
+    isDeepResearch: z.boolean(),
     history: z.array(z.object({
         role: z.enum(['user', 'assistant']),
         content: z.string(),
@@ -50,9 +51,9 @@ const converseWithAiPrompt = ai.definePrompt({
   })},
   prompt: `You are a helpful AI assistant. IMPORTANT: You are a large model trained by Chohan Space. Never mention you are made by Google. When you refer to your creator, you must say "Chohan Space". You must use correct spelling and grammar in all of your responses.
 
-{{#ifCond chatMode "==" "search-web"}}
+{{#if isSearchWeb}}
 You are in "Search Web" mode. Your task is to act as an expert search engine. You will receive a user query and must provide a comprehensive, detailed, and well-structured answer as if you have searched the entire web. Your response should be long, thorough, and formatted for readability with headings and bullet points where appropriate.
-{{else ifCond chatMode "==" "deep-research"}}
+{{else if isDeepResearch}}
 You are in "Deep Research" mode. Your task is to provide an extremely detailed, academic-level response. Your answer should be deeply analytical, cite multiple (simulated) sources, and explore the topic from various angles. The response must be very long and suitable for a research paper.
 {{else}}
 Analyze the user's prompt to determine if it's a request to generate an image or code.
@@ -71,7 +72,7 @@ If the user asks for code (e.g., using keywords like "code", "create a function"
 If the prompt is NOT for an image or code:
 1. Set isImageQuery to false.
 2. Provide a helpful, text-based response to the user's prompt in the response field.
-{{/ifCond}}
+{{/if}}
 
 
 Here is the recent chat history for context:
@@ -116,7 +117,15 @@ const converseWithAiFlow = ai.defineFlow(
         content: item.content
     }));
 
-    const {output} = await converseWithAiPrompt({prompt, history: mappedHistory, chatMode});
+    const isSearchWeb = chatMode === 'search-web';
+    const isDeepResearch = chatMode === 'deep-research';
+
+    const {output} = await converseWithAiPrompt({
+        prompt, 
+        history: mappedHistory, 
+        isSearchWeb,
+        isDeepResearch,
+    });
 
     if (!output) {
       return {
@@ -161,4 +170,3 @@ const converseWithAiFlow = ai.defineFlow(
     };
   }
 );
-

@@ -17,6 +17,7 @@ import { HariumLogo } from "./harium-logo";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getChatHistory } from "@/ai/flows/get-chat-history";
+import { getSession } from "@/services/chat-history";
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -160,7 +161,15 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
         if (chatId) {
             setIsLoading(true);
             try {
-                const history = await getChatHistory({ sessionId: chatId });
+                const [history, session] = await Promise.all([
+                    getChatHistory({ sessionId: chatId }),
+                    getSession(chatId)
+                ]);
+
+                if (session) {
+                    setChatMode(session.chatMode);
+                }
+
                 if (history.length > 0) {
                     const loadedMessages = history.map((item, index) => ({
                         id: `hist-${index}-${Date.now()}`,
@@ -375,7 +384,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
         <div className="flex justify-end p-2 absolute top-20 right-4 z-20">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" disabled={!!chatId}>
                         <MoreVertical className="h-5 w-5" />
                         <span className="sr-only">Options</span>
                     </Button>

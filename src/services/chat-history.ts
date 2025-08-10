@@ -50,6 +50,7 @@ export type Session = {
     sessionId: string;
     userId: string;
     title: string;
+    chatMode: 'chit-chat' | 'search-web' | 'deep-research';
     timestamp?: Date;
 }
 

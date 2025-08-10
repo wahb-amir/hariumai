@@ -94,11 +94,13 @@ const converseWithAiFlow = ai.defineFlow(
     let currentSessionId = sessionId;
     let newSessionId: string | undefined;
 
-    const isNewChat = !(await getSession(currentSessionId));
+    const existingSession = await getSession(currentSessionId);
+    const isNewChat = !existingSession;
+    const sessionChatMode = isNewChat ? chatMode : existingSession.chatMode;
 
     if (isNewChat) {
         const title = await generateChatTitle({ prompt });
-        await createSession({ sessionId: currentSessionId, userId, title });
+        await createSession({ sessionId: currentSessionId, userId, title, chatMode: sessionChatMode });
         newSessionId = currentSessionId;
         if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('chat-updated'));
@@ -117,8 +119,8 @@ const converseWithAiFlow = ai.defineFlow(
         content: item.content
     }));
 
-    const isSearchWeb = chatMode === 'search-web';
-    const isDeepResearch = chatMode === 'deep-research';
+    const isSearchWeb = sessionChatMode === 'search-web';
+    const isDeepResearch = sessionChatMode === 'deep-research';
 
     const {output} = await converseWithAiPrompt({
         prompt, 
@@ -134,7 +136,7 @@ const converseWithAiFlow = ai.defineFlow(
       }
     }
 
-    if (output.isImageQuery && chatMode === 'chit-chat') {
+    if (output.isImageQuery && sessionChatMode === 'chit-chat') {
         await saveMessage({
             role: 'assistant',
             content: output.response,

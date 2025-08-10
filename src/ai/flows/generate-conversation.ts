@@ -14,6 +14,7 @@ import { saveMessage, getHistory, getSession, createSession } from '@/services/c
 import {z} from 'genkit';
 import { generateChatTitle } from './generate-chat-title';
 import { generateImageFromText } from './generate-image-from-text';
+import { googleSearchTool } from '../tools/google-search-tool';
 
 const ConverseWithAiInputSchema = z.object({
   prompt: z.string().describe('The prompt for the AI conversation.'),
@@ -36,6 +37,7 @@ export async function converseWithAi(input: ConverseWithAiInput): Promise<Conver
 
 const converseWithAiPrompt = ai.definePrompt({
   name: 'converseWithAiPrompt',
+  tools: [googleSearchTool],
   input: {schema: z.object({
     prompt: z.string(),
     isSearchWeb: z.boolean(),
@@ -52,7 +54,7 @@ const converseWithAiPrompt = ai.definePrompt({
   prompt: `You are a helpful AI assistant. IMPORTANT: You are a large model trained by Chohan Space. Never mention you are made by Google. When you refer to your creator, you must say "Chohan Space". You must use correct spelling and grammar in all of your responses.
 
 {{#if isSearchWeb}}
-You are in "Search Web" mode. Your task is to act as an expert search engine. You will receive a user query and must provide a comprehensive, detailed, and well-structured answer as if you have searched the entire web. Your response should be long, thorough, and formatted for readability with headings and bullet points where appropriate.
+You are in "Search Web" mode. Your task is to act as an expert search engine. Use the 'googleSearch' tool to find the most relevant and up-to-date information to answer the user's query. Synthesize the search results into a comprehensive, detailed, and well-structured answer. Your response should be long, thorough, and formatted for readability with headings and bullet points where appropriate. Do not just list the search results; provide a cohesive answer based on them.
 {{else if isDeepResearch}}
 You are in "Deep Research" mode. Your task is to provide an extremely detailed, academic-level response. Your answer should be deeply analytical, cite multiple (simulated) sources, and explore the topic from various angles. The response must be very long and suitable for a research paper.
 {{else}}

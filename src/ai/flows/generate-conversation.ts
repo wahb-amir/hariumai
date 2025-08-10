@@ -124,16 +124,30 @@ const converseWithAiFlow = ai.defineFlow(
     const isSearchWeb = sessionChatMode === 'search-web';
     const isDeepResearch = sessionChatMode === 'deep-research';
 
-    const {output} = await converseWithAiPrompt({
-        prompt, 
-        history: mappedHistory, 
-        isSearchWeb,
-        isDeepResearch,
-    });
+    let output;
+    try {
+        const result = await converseWithAiPrompt({
+            prompt, 
+            history: mappedHistory, 
+            isSearchWeb,
+            isDeepResearch,
+        });
+        output = result.output;
+    } catch (e) {
+        console.error("Error calling converseWithAiPrompt", e);
+        output = null;
+    }
+
 
     if (!output) {
+      const fallbackResponse = 'Sorry, I had an issue generating a response.';
+      await saveMessage({
+          role: 'assistant',
+          content: fallbackResponse,
+          sessionId: currentSessionId,
+      });
       return {
-        response: 'Sorry, I had an issue generating a response.',
+        response: fallbackResponse,
         responseType: 'text',
       }
     }

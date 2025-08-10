@@ -277,7 +277,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full">
-        <div className="flex justify-end p-2 absolute top-20 right-4">
+        <div className="flex justify-end p-2 absolute top-20 right-4 z-20">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">

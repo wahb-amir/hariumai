@@ -43,6 +43,9 @@ function Typewriter({ text }: { text: string }) {
   useEffect(() => {
     setDisplayedText("");
     let i = 0;
+    const wordCount = text.split(' ').length;
+    const typingSpeed = wordCount > 50 ? 10 : 20; // Faster speed for longer text
+
     const intervalId = setInterval(() => {
       if (i < text.length) {
         setDisplayedText((prev) => prev + text.charAt(i));
@@ -50,7 +53,7 @@ function Typewriter({ text }: { text: string }) {
       } else {
         clearInterval(intervalId);
       }
-    }, 20); // Adjust speed of typing here
+    }, typingSpeed); 
 
     return () => clearInterval(intervalId);
   }, [text]);

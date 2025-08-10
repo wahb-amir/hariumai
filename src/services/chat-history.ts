@@ -60,10 +60,21 @@ export async function createSession(session: Omit<Session, 'timestamp'>) {
     return await collection.insertOne({ ...session, timestamp: new Date() });
 }
 
-export async function getSession(sessionId: string) {
+export async function getSession(sessionId: string): Promise<Session | null> {
     const database = await connectToDb();
     const collection = database.collection('sessions');
-    return await collection.findOne({ sessionId });
+    const sessionDoc = await collection.findOne({ sessionId });
+    if (!sessionDoc) {
+        return null;
+    }
+    // Convert the MongoDB document to a plain object to avoid serialization issues.
+    return {
+        sessionId: sessionDoc.sessionId,
+        userId: sessionDoc.userId,
+        title: sessionDoc.title,
+        chatMode: sessionDoc.chatMode,
+        timestamp: sessionDoc.timestamp,
+    };
 }
 
 export async function getSessions(userId: string) {

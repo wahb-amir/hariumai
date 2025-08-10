@@ -534,8 +534,10 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                             </AvatarFallback>
                         </Avatar>
                         <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
-                            <Loader2 className="h-5 w-5 animate-spin" />
-                            <span className="text-sm text-muted-foreground">HariumAI is thinking...</span>
+                            {chatMode === 'deep-research' ? <BrainCircuit className="h-5 w-5 animate-spin" /> : <Loader2 className="h-5 w-5 animate-spin" />}
+                            <span className="text-sm text-muted-foreground">
+                                {chatMode === 'deep-research' ? 'Performing deep research...' : 'HariumAI is thinking...'}
+                            </span>
                         </div>
                     </div>
                 )}

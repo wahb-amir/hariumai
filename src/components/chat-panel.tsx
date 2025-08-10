@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
@@ -32,6 +32,8 @@ type ChatPanelProps = {
 }
 
 type ChatMode = "chit-chat" | "search-web" | "deep-research";
+
+type SearchStage = "google" | "facebook" | "web" | null;
 
 function Typewriter({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState("");
@@ -70,6 +72,54 @@ function Typewriter({ text }: { text: string }) {
   );
 }
 
+const GoogleIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+    </svg>
+);
+
+const FacebookIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+        <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878V14.89h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v7.028C18.343 21.128 22 16.991 22 12z" />
+    </svg>
+)
+
+function SearchWebLoader() {
+    const [stage, setStage] = useState<SearchStage>("google");
+
+    useEffect(() => {
+        const timer1 = setTimeout(() => setStage("facebook"), 1000);
+        const timer2 = setTimeout(() => setStage("web"), 2000);
+        return () => {
+            clearTimeout(timer1);
+            clearTimeout(timer2);
+        };
+    }, []);
+
+    return (
+        <div className="flex items-start gap-4">
+            <Avatar className="h-8 w-8 border-none bg-transparent">
+                <AvatarFallback className="bg-transparent text-transparent">
+                    <HariumLogo className="h-8 w-8" />
+                </AvatarFallback>
+            </Avatar>
+            <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                {stage === "google" && <GoogleIcon />}
+                {stage === "facebook" && <FacebookIcon />}
+                {stage === "web" && <Globe className="h-5 w-5" />}
+                <span className="text-sm text-muted-foreground">
+                    {stage === "google" && "Google Search"}
+                    {stage === "facebook" && "Facebook Search"}
+                    {stage === "web" && "Searching the whole web"}
+                </span>
+            </div>
+        </div>
+    );
+}
 
 export function ChatPanel({ chatId }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -78,6 +128,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
   const [audioPlaying, setAudioPlaying] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>("chit-chat");
+  const [preparingSearch, setPreparingSearch] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -115,7 +166,6 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                         id: `hist-${index}-${Date.now()}`,
                         role: item.role,
                         content: item.content,
-                        // This part needs to be smarter if we save images
                         type: item.content.startsWith('data:image') ? 'image' : 'text' as const, 
                     }));
                     setMessages(loadedMessages);
@@ -145,6 +195,14 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const handleSetMode = (mode: ChatMode) => {
+    setChatMode(mode);
+    if (mode === 'search-web' && messages.length === 0) {
+        setPreparingSearch(true);
+        setTimeout(() => setPreparingSearch(false), 2000);
+    }
+  }
+
   const handleSendMessage = async (e: React.FormEvent, prompt?: string) => {
     e.preventDefault();
     const currentInput = prompt || input;
@@ -154,7 +212,6 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
 
     const userMessage: Message = { id: `user-${Date.now()}`, role: "user", content: currentInput, type: "text" };
     
-    // For new chats, we want to clear the placeholder and only show the user message
     setMessages(prev => isNewChat ? [userMessage] : [...prev, userMessage]);
     
     if(!prompt) {
@@ -163,7 +220,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     setIsLoading(true);
 
     try {
-        const result = await converseWithAi({ prompt: currentInput, sessionId: currentSessionId, userId });
+        const result = await converseWithAi({ prompt: currentInput, sessionId: currentSessionId, userId, chatMode });
         
         if (result.responseType === 'image') {
           toast({
@@ -174,7 +231,6 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
 
         if (isNewChat && result.newSessionId) {
             router.push(`/chat/${result.newSessionId}`);
-            // Don't add the assistant message here, it will be loaded by the new page
             return;
         }
 
@@ -275,6 +331,45 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     );
   };
 
+    const renderInitialScreen = () => {
+        if (!chatId && messages.length === 0 && !isLoading) {
+            if (chatMode === 'search-web') {
+                return (
+                    <div className="flex flex-col items-center justify-center h-full pt-24 text-center">
+                         <Search className="h-24 w-24" />
+                         <h2 className="mt-6 text-2xl font-black">Search Web</h2>
+                         {preparingSearch ? (
+                            <div className="flex items-center gap-2 mt-2">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                <p className="text-muted-foreground">Preparing you search web...</p>
+                            </div>
+                         ) : (
+                            <p className="text-muted-foreground">Ask me anything to search across the web.</p>
+                         )}
+                    </div>
+                )
+            }
+            if (chatMode === 'deep-research') {
+                return (
+                    <div className="flex flex-col items-center justify-center h-full pt-24 text-center">
+                         <BrainCircuit className="h-24 w-24" />
+                         <h2 className="mt-6 text-2xl font-black">Deep Research</h2>
+                         <p className="text-muted-foreground">Provide a topic for in-depth analysis.</p>
+                    </div>
+                )
+            }
+            return (
+                <div className="flex flex-col items-center justify-center h-full pt-24">
+                    <HariumLogo className="h-24 w-24" />
+                    <h2 className="mt-6 text-2xl font-black">Hey, I'm Harium.</h2>
+                    <p className="text-muted-foreground">What do you want to know?</p>
+                </div>
+            )
+        }
+        return null;
+    }
+
+
   return (
     <div className="flex flex-col h-full">
         <div className="flex justify-end p-2 absolute top-20 right-4 z-20">
@@ -288,15 +383,15 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>AI Modes</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => setChatMode('chit-chat')}>
+                    <DropdownMenuItem onSelect={() => handleSetMode('chit-chat')}>
                         <MessageSquare className="mr-2 h-4 w-4" />
                         <span>Chit Chatting</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setChatMode('search-web')}>
+                    <DropdownMenuItem onSelect={() => handleSetMode('search-web')}>
                         <Search className="mr-2 h-4 w-4" />
                         <span>Search Web</span>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setChatMode('deep-research')}>
+                    <DropdownMenuItem onSelect={() => handleSetMode('deep-research')}>
                         <BrainCircuit className="mr-2 h-4 w-4" />
                         <span>Deep Research</span>
                     </DropdownMenuItem>
@@ -305,13 +400,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
         </div>
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-3xl mx-auto py-8">
-            {!chatId && messages.length === 0 && !isLoading && (
-                 <div className="flex flex-col items-center justify-center h-full pt-24">
-                     <HariumLogo className="h-24 w-24" />
-                     <h2 className="mt-6 text-2xl font-black">Hey, I'm Harium.</h2>
-                     <p className="text-muted-foreground">What do you want to know?</p>
-                 </div>
-            )}
+            {renderInitialScreen()}
           {messages.map((message, index) => (
             <div key={message.id} className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
               {message.role === "assistant" && (
@@ -397,17 +486,21 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
             </div>
           ))}
            {isLoading && messages.length > 0 && (
-            <div className="flex items-start gap-4">
-               <Avatar className="h-8 w-8 border-none bg-transparent">
-                  <AvatarFallback className="bg-transparent text-transparent">
-                    <HariumLogo className="h-8 w-8" />
-                  </AvatarFallback>
-                </Avatar>
-              <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span className="text-sm text-muted-foreground">HariumAI is thinking...</span>
-              </div>
-            </div>
+            <>
+                {chatMode === 'search-web' ? <SearchWebLoader /> : (
+                    <div className="flex items-start gap-4">
+                        <Avatar className="h-8 w-8 border-none bg-transparent">
+                            <AvatarFallback className="bg-transparent text-transparent">
+                                <HariumLogo className="h-8 w-8" />
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span className="text-sm text-muted-foreground">HariumAI is thinking...</span>
+                        </div>
+                    </div>
+                )}
+            </>
           )}
           <div ref={messagesEndRef} />
         </div>
@@ -428,7 +521,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                         handleSendMessage(e);
                     }
                     }}
-                    disabled={isLoading || !userId}
+                    disabled={isLoading || !userId || preparingSearch}
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
                     <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled={isLoading}><Paperclip className="h-4 w-4" /></Button>

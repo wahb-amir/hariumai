@@ -19,6 +19,7 @@ const ConverseWithAiInputSchema = z.object({
   prompt: z.string().describe('The prompt for the AI conversation.'),
   sessionId: z.string().describe('The user\'s session ID.'),
   userId: z.string().describe('The user\'s ID (can be an anonymous ID).'),
+  chatMode: z.enum(['chit-chat', 'search-web', 'deep-research']).describe('The selected AI mode.'),
 });
 export type ConverseWithAiInput = z.infer<typeof ConverseWithAiInputSchema>;
 
@@ -37,6 +38,7 @@ const converseWithAiPrompt = ai.definePrompt({
   name: 'converseWithAiPrompt',
   input: {schema: z.object({
     prompt: z.string(),
+    chatMode: z.enum(['chit-chat', 'search-web', 'deep-research']),
     history: z.array(z.object({
         role: z.enum(['user', 'assistant']),
         content: z.string(),
@@ -48,6 +50,11 @@ const converseWithAiPrompt = ai.definePrompt({
   })},
   prompt: `You are a helpful AI assistant. IMPORTANT: You are a large model trained by Chohan Space. Never mention you are made by Google. When you refer to your creator, you must say "Chohan Space". You must use correct spelling and grammar in all of your responses.
 
+{{#ifCond chatMode "==" "search-web"}}
+You are in "Search Web" mode. Your task is to act as an expert search engine. You will receive a user query and must provide a comprehensive, detailed, and well-structured answer as if you have searched the entire web. Your response should be long, thorough, and formatted for readability with headings and bullet points where appropriate.
+{{else ifCond chatMode "==" "deep-research"}}
+You are in "Deep Research" mode. Your task is to provide an extremely detailed, academic-level response. Your answer should be deeply analytical, cite multiple (simulated) sources, and explore the topic from various angles. The response must be very long and suitable for a research paper.
+{{else}}
 Analyze the user's prompt to determine if it's a request to generate an image or code.
 
 **Image Generation**
@@ -64,6 +71,8 @@ If the user asks for code (e.g., using keywords like "code", "create a function"
 If the prompt is NOT for an image or code:
 1. Set isImageQuery to false.
 2. Provide a helpful, text-based response to the user's prompt in the response field.
+{{/ifCond}}
+
 
 Here is the recent chat history for context:
 {{#each history}}
@@ -80,7 +89,7 @@ const converseWithAiFlow = ai.defineFlow(
     inputSchema: ConverseWithAiInputSchema,
     outputSchema: ConverseWithAiOutputSchema,
   },
-  async ({prompt, sessionId, userId}) => {
+  async ({prompt, sessionId, userId, chatMode}) => {
     let currentSessionId = sessionId;
     let newSessionId: string | undefined;
 
@@ -107,7 +116,7 @@ const converseWithAiFlow = ai.defineFlow(
         content: item.content
     }));
 
-    const {output} = await converseWithAiPrompt({prompt, history: mappedHistory});
+    const {output} = await converseWithAiPrompt({prompt, history: mappedHistory, chatMode});
 
     if (!output) {
       return {
@@ -116,7 +125,7 @@ const converseWithAiFlow = ai.defineFlow(
       }
     }
 
-    if (output.isImageQuery) {
+    if (output.isImageQuery && chatMode === 'chit-chat') {
         await saveMessage({
             role: 'assistant',
             content: output.response,
@@ -152,3 +161,4 @@ const converseWithAiFlow = ai.defineFlow(
     };
   }
 );
+

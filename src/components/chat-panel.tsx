@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, ImageIcon, Copy, RefreshCw } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getChatHistory } from "@/ai/flows/get-chat-history";
 import { v4 as uuidv4 } from 'uuid';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 type Message = {
   id: string;
@@ -29,6 +30,8 @@ type Message = {
 type ChatPanelProps = {
     chatId?: string;
 }
+
+type ChatMode = "chit-chat" | "search-web" | "deep-research";
 
 function Typewriter({ text }: { text: string }) {
   const [displayedText, setDisplayedText] = useState("");
@@ -74,6 +77,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [audioPlaying, setAudioPlaying] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [chatMode, setChatMode] = useState<ChatMode>("chit-chat");
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -273,6 +277,32 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full">
+        <div className="flex justify-end p-2 absolute top-20 right-4">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-5 w-5" />
+                        <span className="sr-only">Options</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>AI Modes</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => setChatMode('chit-chat')}>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        <span>Chit Chatting</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setChatMode('search-web')}>
+                        <Search className="mr-2 h-4 w-4" />
+                        <span>Search Web</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setChatMode('deep-research')}>
+                        <BrainCircuit className="mr-2 h-4 w-4" />
+                        <span>Deep Research</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-3xl mx-auto py-8">
             {!chatId && messages.length === 0 && !isLoading && (

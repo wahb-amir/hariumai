@@ -253,7 +253,7 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
           </div>
           <div className="flex items-center gap-2"></div>
         </header>
-        <main className="flex-1 flex flex-col">
+        <main className="flex-1 flex flex-col relative">
           {mainContent}
         </main>
       </SidebarInset>

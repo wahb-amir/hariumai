@@ -36,44 +36,90 @@ type ChatMode = "chit-chat" | "search-web" | "deep-research";
 
 type SearchStage = "google" | "facebook" | "web" | null;
 
-function Typewriter({ text }: { text: string }) {
-  const [displayedText, setDisplayedText] = useState("");
-  const [showCursor, setShowCursor] = useState(true);
-
-  useEffect(() => {
-    setDisplayedText("");
-    let i = 0;
-    const wordCount = text.split(' ').length;
-    const typingSpeed = wordCount > 50 ? 10 : 20; // Faster speed for longer text
-
-    const intervalId = setInterval(() => {
-      if (i < text.length) {
-        setDisplayedText((prev) => prev + text.charAt(i));
-        i++;
-      } else {
-        clearInterval(intervalId);
+const MarkdownRenderer = ({ text }: { text: string }) => {
+    const renderChunk = (chunk: string, index: number) => {
+      // Bold
+      if (chunk.startsWith('**') && chunk.endsWith('**')) {
+        return <strong key={index}>{chunk.slice(2, -2)}</strong>;
       }
-    }, typingSpeed); 
+      // Italic
+      if (chunk.startsWith('_') && chunk.endsWith('_')) {
+        return <em key={index}>{chunk.slice(1, -1)}</em>;
+      }
+      // Blockquote
+      if (chunk.startsWith('>')) {
+        return (
+          <blockquote key={index} className="pl-4 border-l-4 border-gray-300 italic">
+            {chunk.slice(1).trim()}
+          </blockquote>
+        );
+      }
+       // Link for "Chohan Space"
+       if (chunk.toLowerCase() === 'chohan space') {
+        return (
+          <a
+            key={index}
+            href="https://thechohan.space"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            {chunk}
+          </a>
+        );
+      }
+      return <span key={index}>{chunk}</span>;
+    };
+  
+    const parts = text.split(/(\*\*.*?\*\*|_.*?_|> .*|Chohan Space)/gi).filter(Boolean);
+    
+    return <>{parts.map(renderChunk)}</>;
+};
 
-    return () => clearInterval(intervalId);
-  }, [text]);
-
-  useEffect(() => {
-    const cursorInterval = setInterval(() => {
-        if (displayedText.length === text.length) {
-            setShowCursor(prev => !prev);
+function Typewriter({ text }: { text: string }) {
+    const [displayedText, setDisplayedText] = useState("");
+    const [showCursor, setShowCursor] = useState(true);
+    const [isFinished, setIsFinished] = useState(false);
+  
+    useEffect(() => {
+      setDisplayedText("");
+      setIsFinished(false);
+      let i = 0;
+      const wordCount = text.split(' ').length;
+      const typingSpeed = wordCount > 50 ? 10 : 20;
+  
+      const intervalId = setInterval(() => {
+        if (i < text.length) {
+          setDisplayedText((prev) => prev + text.charAt(i));
+          i++;
+        } else {
+          clearInterval(intervalId);
+          setIsFinished(true);
         }
-    }, 500); // Cursor blink speed
-
-    return () => clearInterval(cursorInterval);
-  }, [displayedText, text]);
-
-  return (
-    <p className="text-sm leading-relaxed break-words">
-      {displayedText}
-      {displayedText.length < text.length ? <span className="text-xl ml-1">●</span> : (showCursor && <span className="text-xl ml-1 animate-pulse">●</span>)}
-    </p>
-  );
+      }, typingSpeed);
+  
+      return () => clearInterval(intervalId);
+    }, [text]);
+  
+    useEffect(() => {
+      if (isFinished) {
+        const cursorInterval = setInterval(() => {
+          setShowCursor((prev) => !prev);
+        }, 500);
+        return () => clearInterval(cursorInterval);
+      }
+    }, [isFinished]);
+  
+    if (isFinished) {
+        return <div className="text-sm leading-relaxed break-words"><MarkdownRenderer text={text} /></div>;
+    }
+  
+    return (
+      <p className="text-sm leading-relaxed break-words">
+        {displayedText}
+        <span className={`text-xl ml-1 ${!isFinished || showCursor ? 'opacity-100' : 'opacity-0'} ${!isFinished ? '' : 'animate-pulse'}`}>●</span>
+      </p>
+    );
 }
 
 const GoogleIcon = () => (
@@ -324,25 +370,6 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     }
   };
 
-  const renderMessageContent = (content: string) => {
-    const parts = content.split(/(Chohan Space)/gi);
-    return parts.map((part, index) =>
-      part.toLowerCase() === 'chohan space' ? (
-        <a
-          key={index}
-          href="https://thechohan.space"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline"
-        >
-          {part}
-        </a>
-      ) : (
-        part
-      )
-    );
-  };
-
     const renderInitialScreen = () => {
         if (!chatId && messages.length === 0 && !isLoading) {
             if (chatMode === 'search-web') {
@@ -440,13 +467,13 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                         data-ai-hint="generated image"
                     />
                 ) : (
-                    <>
-                    {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
-                        <Typewriter text={message.content} />
-                    ) : (
-                        <p className="text-sm leading-relaxed break-words">{renderMessageContent(message.content)}</p>
-                    )}
-                    </>
+                    <div className="text-sm leading-relaxed break-words">
+                        {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
+                            <Typewriter text={message.content} />
+                        ) : (
+                            <MarkdownRenderer text={message.content} />
+                        )}
+                    </div>
                 )}
                 
                 {message.role === 'assistant' && !isLoading && index === messages.length - 1 && (

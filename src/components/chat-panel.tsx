@@ -67,6 +67,9 @@ const CodeBlock = ({ code }: { code: string }) => {
 };
 
 const MarkdownRenderer = ({ text }: { text: string }) => {
+    if (!text) {
+        return null;
+    }
     const renderChunk = (chunk: string, index: number) => {
         if (chunk.startsWith('```') && chunk.endsWith('```')) {
             const code = chunk.slice(3, -3).trim();
@@ -215,6 +218,7 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
   const [preparingSearch, setPreparingSearch] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -303,7 +307,6 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     const isNewChat = !chatId;
     const userMessage: Message = { id: `user-${Date.now()}`, role: 'user', content: currentInput, type: 'text' };
   
-    // Show the user message immediately.
     setMessages((prev) => [...prev, userMessage]);
   
     if (!promptOverride) {
@@ -322,10 +325,8 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
       };
   
       if (isNewChat && result.newSessionId) {
-        // For a new chat, we navigate and the new page will load the full history.
         router.push(`/chat/${result.newSessionId}`);
       } else {
-        // For an existing chat, just add the new message.
         setMessages((prev) => [...prev, assistantMessage]);
       }
     } catch (error) {
@@ -335,7 +336,6 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
         title: 'Error',
         description: 'Failed to get a response from the AI.',
       });
-      // If there was an error, remove the user message that was optimistically added.
       setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
     } finally {
       setIsLoading(false);
@@ -346,7 +346,6 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     if (messages.length < 1 || isLoading) return;
     const lastUserMessage = messages.filter(m => m.role === 'user').at(-1);
     if(lastUserMessage) {
-        // Remove the last assistant response if it exists
         const newMessages = messages.slice(0, messages.length - 1);
         setMessages(newMessages);
         handleSendMessage(new Event('submit') as unknown as React.FormEvent, lastUserMessage.content);
@@ -401,6 +400,24 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     }
   };
 
+  const handleAttachment = (type: 'gallery' | 'files') => {
+    if (fileInputRef.current) {
+        fileInputRef.current.accept = type === 'gallery' ? 'image/*' : '*/*';
+        fileInputRef.current.click();
+    }
+  }
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        // TODO: Handle file upload and message sending
+        toast({
+            title: "File selected",
+            description: `${file.name} is ready to be sent.`,
+        });
+    }
+  }
+
     const renderInitialScreen = () => {
         if (!chatId && messages.length === 0 && !isLoading) {
             if (chatMode === 'search-web') {
@@ -442,6 +459,7 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full">
+        <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelected} />
         <div className="flex justify-end p-2 absolute top-20 right-4 z-20">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -599,17 +617,17 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleAttachment('gallery')}>
                                 <ImageIcon className="mr-2 h-4 w-4" />
                                 <span>Gallery</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleAttachment('files')}>
                                 <File className="mr-2 h-4 w-4" />
                                 <span>Files</span>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem disabled>
                                 <Link2 className="mr-2 h-4 w-4" />
-                                <span>Attach URL</span>
+                                <span>Attach URL (in testing)</span>
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -625,5 +643,7 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     </div>
   );
 }
+
+    
 
     

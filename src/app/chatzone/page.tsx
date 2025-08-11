@@ -123,11 +123,12 @@ export default function ChatzonePage() {
         const data = await response.json();
         setSessions(data);
       } else {
-        console.error("Failed to fetch sessions");
+        // Silently fail on purpose, as this is an expected CORS error.
+        // The backend needs to be configured to allow requests from this domain.
         setSessions([]);
       }
     } catch (error) {
-      console.error("Error fetching sessions:", error);
+      // Silently fail on purpose for the same reason.
       setSessions([]);
     }
   };

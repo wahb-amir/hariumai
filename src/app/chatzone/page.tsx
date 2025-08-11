@@ -49,6 +49,9 @@ const CodeBlock = ({ code }: { code: string }) => {
 };
 
 const MarkdownRenderer = ({ text }: { text: string }) => {
+    if (!text) {
+        return null;
+    }
     const parts = text.split(/(\`\`\`[\s\S]*?\`\`\`|\*\*.*?\*\*|\*.*?\*)/g).filter(Boolean);
   
     return (

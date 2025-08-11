@@ -176,7 +176,7 @@ export default function ChatzonePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: input,
+          message: input,
           sessionId: currentChatId,
         }),
       });
@@ -350,5 +350,3 @@ export default function ChatzonePage() {
       </main>
     </div>
   );
-
-    

@@ -21,6 +21,7 @@ const ConverseWithAiInputSchema = z.object({
   sessionId: z.string().describe('The user\'s session ID.'),
   userId: z.string().describe('The user\'s ID (can be an anonymous ID).'),
   chatMode: z.enum(['chit-chat', 'search-web', 'deep-research']).describe('The selected AI mode.'),
+  model: z.string().optional().describe('The selected AI model.'),
 });
 export type ConverseWithAiInput = z.infer<typeof ConverseWithAiInputSchema>;
 
@@ -98,7 +99,7 @@ const converseWithAiFlow = ai.defineFlow(
     inputSchema: ConverseWithAiInputSchema,
     outputSchema: ConverseWithAiOutputSchema,
   },
-  async ({prompt, sessionId, userId, chatMode}) => {
+  async ({prompt, sessionId, userId, chatMode, model}) => {
     let currentSessionId = sessionId;
     let newSessionId: string | undefined;
 
@@ -108,7 +109,7 @@ const converseWithAiFlow = ai.defineFlow(
 
     if (isNewChat) {
         const title = await generateChatTitle({ prompt });
-        await createSession({ sessionId: currentSessionId, userId, title, chatMode: sessionChatMode });
+        await createSession({ sessionId: currentSessionId, userId, title, chatMode: sessionChatMode, model: model || '1.2ot' });
         newSessionId = currentSessionId;
         if (typeof window !== 'undefined') {
             window.dispatchEvent(new Event('chat-updated'));

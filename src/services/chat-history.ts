@@ -1,3 +1,4 @@
+
 'use server';
 
 import { MongoClient, ServerApiVersion } from 'mongodb';
@@ -51,6 +52,7 @@ export type Session = {
     userId: string;
     title: string;
     chatMode: 'chit-chat' | 'search-web' | 'deep-research';
+    model?: string;
     timestamp?: Date;
 }
 
@@ -73,6 +75,7 @@ export async function getSession(sessionId: string): Promise<Session | null> {
         userId: sessionDoc.userId,
         title: sessionDoc.title,
         chatMode: sessionDoc.chatMode,
+        model: sessionDoc.model,
         timestamp: sessionDoc.timestamp,
     };
 }

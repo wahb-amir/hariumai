@@ -30,6 +30,7 @@ type Message = {
 
 type ChatPanelProps = {
     chatId?: string;
+    model?: string;
 }
 
 type ChatMode = "chit-chat" | "search-web" | "deep-research";
@@ -204,7 +205,7 @@ function SearchWebLoader() {
     );
 }
 
-export function ChatPanel({ chatId }: ChatPanelProps) {
+export function ChatPanel({ chatId, model }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -311,7 +312,7 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
     setIsLoading(true);
 
     try {
-        const result = await converseWithAi({ prompt: currentInput, sessionId: currentSessionId, userId, chatMode });
+        const result = await converseWithAi({ prompt: currentInput, sessionId: currentSessionId, userId, chatMode, model });
         
         if (result.responseType === 'image') {
           toast({

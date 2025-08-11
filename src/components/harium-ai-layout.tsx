@@ -33,6 +33,7 @@ import {
   LogIn,
   PlusCircle,
   History,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -44,8 +45,9 @@ import { app } from "@/lib/firebase";
 import { getChatSessions } from "@/ai/flows/get-chat-sessions";
 import type { GetChatSessionsOutput } from "@/ai/flows/get-chat-sessions";
 import { v4 as uuidv4 } from "uuid";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
-function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
+function HariumAiLayoutClient({ children, model, onModelChange }: { children?: React.ReactNode, model: string, onModelChange: (model: string) => void }) {
   const [voiceResponses, setVoiceResponses] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [chatSessions, setChatSessions] = React.useState<GetChatSessionsOutput>([]);
@@ -113,7 +115,26 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
     }
   }
 
-  const mainContent = children;
+  const handleModelChange = (newModel: string) => {
+    if (onModelChange) {
+        onModelChange(newModel);
+    }
+    toast({
+        title: "Model Switched",
+        description: `Switched to ${newModel}`,
+    });
+    router.push('/');
+  }
+
+  const mainContent = React.Children.map(children, child => {
+    if (React.isValidElement(child)) {
+      // @ts-ignore
+      return React.cloneElement(child, { model });
+    }
+    return child;
+  });
+
+  const models = ["ha 1.1", "1.2ot", "1.2otpro", "1.3 (In Testing)"];
 
   return (
     <SidebarProvider>
@@ -225,17 +246,6 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter>
-          <SidebarMenu>
-            <SidebarGroup>
-              <SidebarGroupLabel>AI Model</SidebarGroupLabel>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Cog />
-                  ha-1.1
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarGroup>
-          </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
       <SidebarInset>
@@ -244,12 +254,24 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
             <SidebarTrigger className="md:hidden">
               <Menu />
             </SidebarTrigger>
-            <h2 className="font-black text-lg">
-              Harium AI{" "}
-              <span className="text-xs text-muted-foreground font-normal">
-                (ha-1.4)
-              </span>
-            </h2>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="p-1 h-auto font-black text-lg">
+                        Harium AI{" "}
+                        <span className="text-xs text-muted-foreground font-normal ml-2">
+                            ({model})
+                        </span>
+                        <ChevronDown className="h-4 w-4 ml-1" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                    {models.map(m => (
+                        <DropdownMenuItem key={m} onSelect={() => handleModelChange(m)} disabled={m === model}>
+                            {m}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="flex items-center gap-2"></div>
         </header>
@@ -262,10 +284,10 @@ function HariumAiLayoutClient({ children }: { children?: React.ReactNode}) {
 }
 
 
-export function HariumAiLayout({ children }: { children?: React.ReactNode}) {
+export function HariumAiLayout({ children, model, onModelChange }: { children?: React.ReactNode, model: string, onModelChange: (model: string) => void }) {
     return (
         <AuthProvider>
-            <HariumAiLayoutClient>{children}</HariumAiLayoutClient>
+            <HariumAiLayoutClient model={model} onModelChange={onModelChange}>{children}</HariumAiLayoutClient>
         </AuthProvider>
     )
 }

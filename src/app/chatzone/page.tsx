@@ -70,33 +70,6 @@ const MarkdownRenderer = ({ text }: { text: string }) => {
     );
 };
 
-const Typewriter = ({ text, onFinished }: { text: string; onFinished: () => void }) => {
-    const [displayedText, setDisplayedText] = React.useState("");
-  
-    React.useEffect(() => {
-      setDisplayedText("");
-      let i = 0;
-      const intervalId = setInterval(() => {
-        if (i < text.length) {
-          setDisplayedText((prev) => prev + text.charAt(i));
-          i++;
-        } else {
-          clearInterval(intervalId);
-          onFinished();
-        }
-      }, 20);
-  
-      return () => clearInterval(intervalId);
-    }, [text, onFinished]);
-  
-    return (
-      <p className="text-sm leading-relaxed break-words">
-        <MarkdownRenderer text={displayedText} />
-        <span className="animate-pulse">●</span>
-      </p>
-    );
-}
-
 export default function ChatzonePage() {
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState("");
@@ -105,7 +78,6 @@ export default function ChatzonePage() {
   const [sessions, setSessions] = React.useState<Session[]>([]);
   const [currentChatId, setCurrentChatId] = React.useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
-  const [isTyping, setIsTyping] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -114,7 +86,7 @@ export default function ChatzonePage() {
 
   React.useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, isTyping]);
+  }, [messages, isLoading]);
 
   const loadSessions = async () => {
     try {
@@ -140,6 +112,7 @@ export default function ChatzonePage() {
   const handleNewChat = () => {
     setCurrentChatId(null);
     setMessages([]);
+    setIsSidebarOpen(false);
   };
 
   const loadChat = async (sessionId: string) => {
@@ -186,7 +159,6 @@ export default function ChatzonePage() {
         const data = await response.json();
         const assistantMessage: Message = { role: "assistant", content: data.response };
         setMessages((prev) => [...prev, assistantMessage]);
-        setIsTyping(true);
         if (!currentChatId && data.sessionId) {
             setCurrentChatId(data.sessionId);
             loadSessions(); // Refresh session list
@@ -291,11 +263,7 @@ export default function ChatzonePage() {
                         </Avatar>
                     )}
                     <div className={cn("max-w-[75%] rounded-lg p-3 shadow-sm", message.role === "user" ? "bg-green-600 text-white" : "bg-white text-gray-800")}>
-                        {message.role === 'assistant' && isTyping && index === messages.length - 1 ? (
-                            <Typewriter text={message.content} onFinished={() => setIsTyping(false)} />
-                        ) : (
-                            <div className="text-sm leading-relaxed break-words"><MarkdownRenderer text={message.content} /></div>
-                        )}
+                        <div className="text-sm leading-relaxed break-words"><MarkdownRenderer text={message.content} /></div>
                     </div>
                     {message.role === "user" && (
                         <Avatar className="h-8 w-8 border bg-white">
@@ -353,5 +321,3 @@ export default function ChatzonePage() {
     </div>
   );
 }
-
-    

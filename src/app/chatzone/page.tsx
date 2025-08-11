@@ -52,6 +52,7 @@ export default function ChatzonePage() {
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
   const [sessions, setSessions] = React.useState<Session[]>([]);
   const [currentChatId, setCurrentChatId] = React.useState<string | null>(null);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -72,9 +73,12 @@ export default function ChatzonePage() {
         setSessions(data);
       } else {
         console.error("Failed to fetch sessions");
+        // Keep sessions as an empty array
+        setSessions([]);
       }
     } catch (error) {
       console.error("Error fetching sessions:", error);
+      setSessions([]);
     }
   };
 
@@ -89,7 +93,7 @@ export default function ChatzonePage() {
 
   const loadChat = async (sessionId: string) => {
     if (isLoading) return;
-    setIsLoading(true);
+    setIsLoadingHistory(true);
     try {
       const response = await fetch(`${BACKEND_URL}/chat/${sessionId}`);
       if (response.ok) {
@@ -103,7 +107,7 @@ export default function ChatzonePage() {
     } catch (error) {
       console.error("Error loading chat:", error);
     } finally {
-        setIsLoading(false);
+        setIsLoadingHistory(false);
     }
   };
 
@@ -130,7 +134,7 @@ export default function ChatzonePage() {
         const data = await response.json();
         const assistantMessage: Message = { role: "assistant", content: data.response };
         setMessages((prev) => [...prev, assistantMessage]);
-        if (!currentChatId) {
+        if (!currentChatId && data.sessionId) {
             setCurrentChatId(data.sessionId);
             loadSessions(); // Refresh session list
         }
@@ -166,7 +170,7 @@ export default function ChatzonePage() {
         <div className="flex-1 overflow-y-auto mt-4">
             <h2 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Recent Chats</h2>
             <ul className="mt-2 space-y-1">
-                {sessions.map((session) => (
+                {sessions.length > 0 ? sessions.map((session) => (
                     <li key={session._id}>
                         <Button
                             variant="ghost"
@@ -175,12 +179,15 @@ export default function ChatzonePage() {
                                 currentChatId === session._id && "bg-gray-700"
                             )}
                             onClick={() => loadChat(session._id)}
+                            disabled={isLoadingHistory}
                         >
                             <MessageSquare className="h-4 w-4" />
                             <span className="truncate">{session.title}</span>
                         </Button>
                     </li>
-                ))}
+                )) : (
+                    <p className="px-4 text-sm text-gray-500">No recent chats.</p>
+                )}
             </ul>
         </div>
         <div className="p-2 border-t border-gray-700">
@@ -199,14 +206,19 @@ export default function ChatzonePage() {
 
         <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-6 max-w-3xl mx-auto">
-                {messages.length === 0 && !isLoading && (
+                {messages.length === 0 && !isLoading && !isLoadingHistory && (
                     <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
                         <HariumLogo className="h-24 w-24" />
                         <h2 className="mt-6 text-2xl font-black">ChatZone AI</h2>
                         <p className="text-muted-foreground">Start a conversation to begin.</p>
                     </div>
                 )}
-                {messages.map((message, index) => (
+                 {isLoadingHistory && (
+                    <div className="flex justify-center items-center h-full">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                )}
+                {!isLoadingHistory && messages.map((message, index) => (
                     <div key={index} className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
                     {message.role === "assistant" && (
                         <Avatar className="h-8 w-8 border-none bg-transparent">
@@ -263,10 +275,10 @@ export default function ChatzonePage() {
                             handleSendMessage(e);
                         }
                     }}
-                    disabled={isLoading}
+                    disabled={isLoading || isLoadingHistory}
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isLoading || !input.trim()}>
+                    <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isLoading || isLoadingHistory || !input.trim()}>
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         <span className="sr-only">Send</span>
                     </Button>

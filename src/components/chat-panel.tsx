@@ -225,7 +225,7 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
   const [preparingSearch, setPreparingSearch] = useState(false);
   const [attachment, setAttachment] = useState<Message['attachment'] | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
@@ -691,5 +691,3 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     </div>
   );
 }
-
-    

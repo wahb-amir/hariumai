@@ -22,6 +22,7 @@ const ConverseWithAiInputSchema = z.object({
   userId: z.string().describe('The user\'s ID (can be an anonymous ID).'),
   chatMode: z.enum(['chit-chat', 'search-web', 'deep-research']).describe('The selected AI mode.'),
   model: z.string().optional().describe('The selected AI model.'),
+  attachmentDataUri: z.string().optional().describe("An optional attached file (e.g., an image) as a data URI."),
 });
 export type ConverseWithAiInput = z.infer<typeof ConverseWithAiInputSchema>;
 
@@ -43,6 +44,7 @@ const converseWithAiPrompt = ai.definePrompt({
     prompt: z.string(),
     isSearchWeb: z.boolean(),
     isDeepResearch: z.boolean(),
+    attachmentDataUri: z.string().optional(),
     history: z.array(z.object({
         role: z.enum(['user', 'assistant']),
         content: z.string(),
@@ -59,7 +61,7 @@ You are in "Search Web" mode. Your task is to act as an expert search engine. Us
 {{else if isDeepResearch}}
 You are in "Deep Research" mode. Your task is to provide an extremely detailed, academic-level response. Your answer should be deeply analytical, cite multiple (simulated) sources, and explore the topic from various angles. The response must be very long and suitable for a research paper.
 {{else}}
-Analyze the user's prompt to determine if it's a request to generate an image or code.
+Analyze the user's prompt to determine if it's a request to generate an image or code. If an image is attached, describe what you see in the image.
 
 **Image Generation**
 An image generation request must contain keywords like "generate", "draw", "create", "show me a picture of", or similar explicit instructions for image creation.
@@ -83,14 +85,17 @@ If the prompt is NOT for an image or code:
 2. Provide a helpful, text-based response to the user's prompt in the response field.
 {{/if}}
 
-
 Here is the recent chat history for context:
 {{#each history}}
 {{role}}: {{content}}
 {{/each}}
 
 New Prompt:
-{{{prompt}}}`,
+{{{prompt}}}
+{{#if attachmentDataUri}}
+Attached File: {{media url=attachmentDataUri}}
+{{/if}}
+`,
 });
 
 const converseWithAiFlow = ai.defineFlow(
@@ -99,7 +104,7 @@ const converseWithAiFlow = ai.defineFlow(
     inputSchema: ConverseWithAiInputSchema,
     outputSchema: ConverseWithAiOutputSchema,
   },
-  async ({prompt, sessionId, userId, chatMode, model}) => {
+  async ({prompt, sessionId, userId, chatMode, model, attachmentDataUri}) => {
     let currentSessionId = sessionId;
     let newSessionId: string | undefined;
 
@@ -116,9 +121,12 @@ const converseWithAiFlow = ai.defineFlow(
         }
     }
 
+    // If there's an attachment, save its data URI as part of the user's message content.
+    // This isn't ideal for non-image files, but it's a simple way to log that something was attached.
+    const userMessageContent = attachmentDataUri ? `${prompt}\n\n[Attachment: ${attachmentDataUri.substring(0, 50)}...]` : prompt;
     await saveMessage({
       role: 'user',
-      content: prompt,
+      content: userMessageContent,
       sessionId: currentSessionId,
     });
     
@@ -138,6 +146,7 @@ const converseWithAiFlow = ai.defineFlow(
             history: mappedHistory, 
             isSearchWeb,
             isDeepResearch,
+            attachmentDataUri,
         });
         output = result.output;
     } catch (e) {

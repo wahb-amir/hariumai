@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit, Globe, File, Link2 } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit, Globe, File, Link2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
@@ -26,10 +26,11 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   type: "text" | "image";
-  file?: {
+  attachment?: {
     name: string;
     type: string;
     size: number;
+    dataUrl: string;
   }
 };
 
@@ -221,6 +222,7 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
   const [userId, setUserId] = useState<string | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode>("chit-chat");
   const [preparingSearch, setPreparingSearch] = useState(false);
+  const [attachment, setAttachment] = useState<Message['attachment'] | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -310,17 +312,31 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     if (!currentInput.trim() || !userId) return;
   
     const isNewChat = !chatId;
-    const userMessage: Message = { id: `user-${Date.now()}`, role: 'user', content: currentInput, type: 'text' };
+    const userMessage: Message = { 
+        id: `user-${Date.now()}`, 
+        role: 'user', 
+        content: currentInput, 
+        type: 'text',
+        attachment: attachment || undefined,
+    };
   
     setMessages((prev) => [...prev, userMessage]);
   
     if (!promptOverride) {
       setInput('');
+      setAttachment(null);
     }
     setIsLoading(true);
   
     try {
-      const result = await converseWithAi({ prompt: currentInput, sessionId: currentSessionId, userId, chatMode, model });
+      const result = await converseWithAi({ 
+          prompt: currentInput, 
+          sessionId: currentSessionId, 
+          userId, 
+          chatMode, 
+          model,
+          attachmentDataUri: attachment?.dataUrl
+      });
   
       const assistantMessage: Message = {
         id: `asst-${Date.now()}`,
@@ -407,7 +423,7 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
 
   const handleAttachment = (type: 'gallery' | 'files') => {
     if (fileInputRef.current) {
-        fileInputRef.current.accept = type === 'gallery' ? 'image/*' : '*/*';
+        fileInputRef.current.accept = type === 'gallery' ? 'image/*' : 'image/*'; // Allow only images for now
         fileInputRef.current.click();
     }
   }
@@ -415,26 +431,29 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast({
+            variant: "destructive",
+            title: "Invalid File Type",
+            description: "Please select an image file.",
+        });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onload = (loadEvent) => {
         const dataUrl = loadEvent.target?.result as string;
-        const messageType = file.type.startsWith('image/') ? 'image' : 'text';
+        
+        setAttachment({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            dataUrl: dataUrl,
+        });
 
-        const fileMessage: Message = {
-            id: `file-${Date.now()}`,
-            role: 'user',
-            content: messageType === 'image' ? dataUrl : file.name,
-            type: messageType,
-            file: {
-                name: file.name,
-                type: file.type,
-                size: file.size,
-            }
-        };
-        setMessages((prev) => [...prev, fileMessage]);
         toast({
-            title: "Attachment Added",
-            description: `${file.name} has been attached. It will be sent with your next message. Note: attachments are not saved.`,
+            title: "Attachment Ready",
+            description: `${file.name} is ready to be sent with your next message.`,
         });
       }
       reader.readAsDataURL(file);
@@ -544,12 +563,16 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
                     />
                 ) : (
                     <>
-                        {message.file && (
+                        {message.attachment && (
                              <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
-                                <File className="h-6 w-6" />
+                                {message.attachment.type.startsWith('image/') ? (
+                                    <Image src={message.attachment.dataUrl} alt={message.attachment.name} width={48} height={48} className="rounded-md" />
+                                ) : (
+                                    <File className="h-6 w-6" />
+                                )}
                                 <div className="text-sm">
-                                    <p className="font-semibold">{message.file.name}</p>
-                                    <p className="text-xs">{Math.round(message.file.size / 1024)} KB</p>
+                                    <p className="font-semibold">{message.attachment.name}</p>
+                                    <p className="text-xs">{Math.round(message.attachment.size / 1024)} KB</p>
                                 </div>
                             </div>
                         )}
@@ -631,7 +654,19 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
       </ScrollArea>
       <div className="border-t pt-4 bg-background">
         <div className="max-w-3xl mx-auto">
-             <div className="h-28" />
+             {attachment && (
+                <div className="px-4 pb-2">
+                    <div className="flex items-center gap-2 p-2 rounded-md bg-secondary text-sm">
+                        <ImageIcon className="h-5 w-5" />
+                        <span className="font-medium truncate">{attachment.name}</span>
+                        <span className="text-muted-foreground text-xs">({Math.round(attachment.size / 1024)} KB)</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => setAttachment(null)}>
+                            <X className="h-4 w-4" />
+                            <span className="sr-only">Remove attachment</span>
+                        </Button>
+                    </div>
+                </div>
+            )}
             <form onSubmit={handleSendMessage} className="relative">
                 <Textarea
                     value={input}
@@ -681,5 +716,3 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     </div>
   );
 }
-
-    

@@ -20,32 +20,6 @@ type Session = {
   title: string;
 };
 
-const Typewriter = ({ text }: { text: string }) => {
-    const [displayedText, setDisplayedText] = React.useState("");
-  
-    React.useEffect(() => {
-      setDisplayedText("");
-      let i = 0;
-      const intervalId = setInterval(() => {
-        if (i < text.length) {
-          setDisplayedText((prev) => prev + text.charAt(i));
-          i++;
-        } else {
-          clearInterval(intervalId);
-        }
-      }, 20);
-  
-      return () => clearInterval(intervalId);
-    }, [text]);
-  
-    return (
-      <p className="text-sm leading-relaxed break-words">
-        <MarkdownRenderer text={displayedText} />
-        <span className="animate-pulse">●</span>
-      </p>
-    );
-}
-
 const CodeBlock = ({ code }: { code: string }) => {
     const [isCopied, setIsCopied] = React.useState(false);
 
@@ -74,7 +48,6 @@ const CodeBlock = ({ code }: { code: string }) => {
     );
 };
 
-
 const MarkdownRenderer = ({ text }: { text: string }) => {
     const parts = text.split(/(\`\`\`[\s\S]*?\`\`\`|\*\*.*?\*\*|\*.*?\*)/g).filter(Boolean);
   
@@ -97,6 +70,32 @@ const MarkdownRenderer = ({ text }: { text: string }) => {
     );
 };
 
+const Typewriter = ({ text, onFinished }: { text: string; onFinished: () => void }) => {
+    const [displayedText, setDisplayedText] = React.useState("");
+  
+    React.useEffect(() => {
+      setDisplayedText("");
+      let i = 0;
+      const intervalId = setInterval(() => {
+        if (i < text.length) {
+          setDisplayedText((prev) => prev + text.charAt(i));
+          i++;
+        } else {
+          clearInterval(intervalId);
+          onFinished();
+        }
+      }, 20);
+  
+      return () => clearInterval(intervalId);
+    }, [text, onFinished]);
+  
+    return (
+      <p className="text-sm leading-relaxed break-words">
+        <MarkdownRenderer text={displayedText} />
+        <span className="animate-pulse">●</span>
+      </p>
+    );
+}
 
 export default function ChatzonePage() {
   const [messages, setMessages] = React.useState<Message[]>([]);
@@ -106,6 +105,7 @@ export default function ChatzonePage() {
   const [sessions, setSessions] = React.useState<Session[]>([]);
   const [currentChatId, setCurrentChatId] = React.useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
+  const [isTyping, setIsTyping] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -114,7 +114,7 @@ export default function ChatzonePage() {
 
   React.useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages, isLoading, isTyping]);
 
   const loadSessions = async () => {
     try {
@@ -145,6 +145,7 @@ export default function ChatzonePage() {
   const loadChat = async (sessionId: string) => {
     if (isLoading) return;
     setIsLoadingHistory(true);
+    setIsSidebarOpen(false);
     try {
       const response = await fetch(`${BACKEND_URL}/chat/${sessionId}`);
       if (response.ok) {
@@ -185,6 +186,7 @@ export default function ChatzonePage() {
         const data = await response.json();
         const assistantMessage: Message = { role: "assistant", content: data.response };
         setMessages((prev) => [...prev, assistantMessage]);
+        setIsTyping(true);
         if (!currentChatId && data.sessionId) {
             setCurrentChatId(data.sessionId);
             loadSessions(); // Refresh session list
@@ -289,8 +291,8 @@ export default function ChatzonePage() {
                         </Avatar>
                     )}
                     <div className={cn("max-w-[75%] rounded-lg p-3 shadow-sm", message.role === "user" ? "bg-green-600 text-white" : "bg-white text-gray-800")}>
-                        {message.role === 'assistant' && isLoading && index === messages.length - 1 ? (
-                            <Typewriter text={message.content} />
+                        {message.role === 'assistant' && isTyping && index === messages.length - 1 ? (
+                            <Typewriter text={message.content} onFinished={() => setIsTyping(false)} />
                         ) : (
                             <div className="text-sm leading-relaxed break-words"><MarkdownRenderer text={message.content} /></div>
                         )}
@@ -304,7 +306,7 @@ export default function ChatzonePage() {
                     )}
                     </div>
                 ))}
-                {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
+                {isLoading && (
                     <div className="flex items-start gap-4">
                         <Avatar className="h-8 w-8 border-none bg-green-500 text-white">
                             <AvatarFallback className="bg-transparent">
@@ -350,3 +352,6 @@ export default function ChatzonePage() {
       </main>
     </div>
   );
+}
+
+    

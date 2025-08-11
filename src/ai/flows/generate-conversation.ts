@@ -68,7 +68,13 @@ If the prompt is an image generation request:
 2. Set the response field to a short confirmation message, like "Sure, generating an image of..."
 
 **Code Generation**
-If the user asks for code (e.g., using keywords like "code", "create a function", "write a snippet"), provide the complete code directly in a single response, formatted in a markdown code block. Do NOT ask for which part to start with (HTML, CSS, JS, etc.) unless the request is too ambiguous to proceed.
+If the user asks for code (e.g., using keywords like "code", "create a function", "write a snippet"), provide the complete code directly in a single response, formatted in a markdown code block using triple backticks (\`\`\`). For example:
+\`\`\`javascript
+function greet() {
+  console.log("Hello, World!");
+}
+\`\`\`
+Do NOT ask for which part to start with (HTML, CSS, JS, etc.) unless the request is too ambiguous to proceed.
 
 **Other Queries**
 If the prompt is NOT for an image or code:

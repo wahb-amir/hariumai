@@ -36,8 +36,41 @@ type ChatMode = "chit-chat" | "search-web" | "deep-research";
 
 type SearchStage = "google" | "facebook" | "web" | null;
 
+const CodeBlock = ({ code }: { code: string }) => {
+    const { toast } = useToast();
+    const handleCopy = () => {
+      navigator.clipboard.writeText(code);
+      toast({
+        title: "Copied!",
+        description: "The code has been copied to your clipboard.",
+      });
+    };
+  
+    return (
+      <div className="bg-black/80 text-white rounded-lg my-2 relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-white/70 hover:text-white absolute top-2 right-2"
+          onClick={handleCopy}
+          title="Copy code"
+        >
+          <Copy className="h-4 w-4" />
+          <span className="sr-only">Copy code</span>
+        </Button>
+        <pre className="p-4 overflow-x-auto text-sm">
+          <code>{code}</code>
+        </pre>
+      </div>
+    );
+};
+
 const MarkdownRenderer = ({ text }: { text: string }) => {
     const renderChunk = (chunk: string, index: number) => {
+        if (chunk.startsWith('```') && chunk.endsWith('```')) {
+            const code = chunk.slice(3, -3).trim();
+            return <CodeBlock key={index} code={code} />;
+        }
       // Bold
       if (chunk.startsWith('**') && chunk.endsWith('**')) {
         return <strong key={index}>{chunk.slice(2, -2)}</strong>;
@@ -49,7 +82,7 @@ const MarkdownRenderer = ({ text }: { text: string }) => {
       // Blockquote
       if (chunk.startsWith('>')) {
         return (
-          <blockquote key={index} className="pl-4 border-l-4 border-gray-300 italic">
+          <blockquote key={index} className="pl-4 border-l-4 border-gray-300 italic my-2">
             {chunk.slice(1).trim()}
           </blockquote>
         );
@@ -71,7 +104,7 @@ const MarkdownRenderer = ({ text }: { text: string }) => {
       return <span key={index}>{chunk}</span>;
     };
   
-    const parts = text.split(/(\*\*.*?\*\*|_.*?_|> .*|Chohan Space)/gi).filter(Boolean);
+    const parts = text.split(/(\`\`\`[\s\S]*?\`\`\`|\*\*.*?\*\*|_.*?_|> .*|Chohan Space)/gi).filter(Boolean);
     
     return <>{parts.map(renderChunk)}</>;
 };
@@ -476,44 +509,40 @@ export function ChatPanel({ chatId }: ChatPanelProps) {
                     </div>
                 )}
                 
-                {message.role === 'assistant' && !isLoading && index === messages.length - 1 && (
+                {message.role === 'assistant' && !isLoading && index === messages.length - 1 && message.type === 'text' && (
                     <div className="mt-2 flex items-center gap-2">
-                         {message.type === 'text' && (
-                            <>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                    onClick={() => handlePlayAudio(message.id, message.content)}
-                                    disabled={audioPlaying !== null && audioPlaying !== message.id}
-                                    title="Play audio"
-                                >
-                                    {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
-                                    <span className="sr-only">Play audio</span>
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                    onClick={() => handleCopy(message.content)}
-                                    title="Copy response"
-                                >
-                                    <Copy className="h-4 w-4" />
-                                    <span className="sr-only">Copy response</span>
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                    onClick={handleRegenerate}
-                                    disabled={isLoading}
-                                    title="Regenerate response"
-                                >
-                                    <RefreshCw className="h-4 w-4" />
-                                    <span className="sr-only">Regenerate response</span>
-                                </Button>
-                            </>
-                        )}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => handlePlayAudio(message.id, message.content)}
+                            disabled={audioPlaying !== null && audioPlaying !== message.id}
+                            title="Play audio"
+                        >
+                            {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
+                            <span className="sr-only">Play audio</span>
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={() => handleCopy(message.content)}
+                            title="Copy response"
+                        >
+                            <Copy className="h-4 w-4" />
+                            <span className="sr-only">Copy response</span>
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                            onClick={handleRegenerate}
+                            disabled={isLoading}
+                            title="Regenerate response"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                            <span className="sr-only">Regenerate response</span>
+                        </Button>
                     </div>
                 )}
               </div>

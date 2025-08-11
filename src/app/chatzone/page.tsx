@@ -2,12 +2,11 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MessageSquare, User, Bot, Send, Loader2, Menu } from "lucide-react";
+import { PlusCircle, MessageSquare, User, Bot, Send, Loader2, Menu, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { HariumLogo } from "@/components/harium-logo";
 
 const BACKEND_URL = "https://harium-ai-backend.onrender.com";
 
@@ -41,21 +40,72 @@ const Typewriter = ({ text }: { text: string }) => {
   
     return (
       <p className="text-sm leading-relaxed break-words">
-        {displayedText}
+        <MarkdownRenderer text={displayedText} />
         <span className="animate-pulse">●</span>
       </p>
     );
 }
+
+const CodeBlock = ({ code }: { code: string }) => {
+    const [isCopied, setIsCopied] = React.useState(false);
+
+    const handleCopy = () => {
+      navigator.clipboard.writeText(code);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    };
+  
+    return (
+      <div className="bg-gray-900 text-white rounded-lg my-2 relative max-w-full font-mono">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-white/70 hover:text-white absolute top-2 right-2"
+          onClick={handleCopy}
+          title="Copy code"
+        >
+          <Copy className="h-4 w-4" />
+          <span className="sr-only">Copy code</span>
+        </Button>
+        <pre className="p-4 pt-10 overflow-x-auto text-xs">
+          <code>{code}</code>
+        </pre>
+      </div>
+    );
+};
+
+
+const MarkdownRenderer = ({ text }: { text: string }) => {
+    const parts = text.split(/(\`\`\`[\s\S]*?\`\`\`|\*\*.*?\*\*|\*.*?\*)/g).filter(Boolean);
+  
+    return (
+      <>
+        {parts.map((part, index) => {
+          if (part.startsWith('```') && part.endsWith('```')) {
+            const code = part.slice(3, -3).trim();
+            return <CodeBlock key={index} code={code} />;
+          }
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={index}>{part.slice(2, -2)}</strong>;
+          }
+          if (part.startsWith('*') && part.endsWith('*')) {
+            return <em key={index}>{part.slice(1, -1)}</em>;
+          }
+          return <span key={index}>{part}</span>;
+        })}
+      </>
+    );
+};
 
 
 export default function ChatzonePage() {
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
-  const [isLoadingHistory, setIsLoadingHistory = React.useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
   const [sessions, setSessions] = React.useState<Session[]>([]);
   const [currentChatId, setCurrentChatId] = React.useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -155,7 +205,7 @@ export default function ChatzonePage() {
 
 
   return (
-    <div className="flex h-screen bg-gray-100 text-gray-800 font-sans">
+    <div className="flex h-screen bg-gray-100 text-gray-800 font-sans select-none">
       {/* Sidebar */}
       <aside className={cn(
         "bg-green-800 text-white flex flex-col p-2 transition-all duration-300 ease-in-out",
@@ -241,7 +291,7 @@ export default function ChatzonePage() {
                         {message.role === 'assistant' && isLoading && index === messages.length - 1 ? (
                             <Typewriter text={message.content} />
                         ) : (
-                            <p className="text-sm leading-relaxed break-words">{message.content}</p>
+                            <div className="text-sm leading-relaxed break-words"><MarkdownRenderer text={message.content} /></div>
                         )}
                     </div>
                     {message.role === "user" && (
@@ -299,5 +349,4 @@ export default function ChatzonePage() {
       </main>
     </div>
   );
-
-    
+}

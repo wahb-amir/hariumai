@@ -5,6 +5,7 @@ import { getAuth, onAuthStateChanged, User, isSignInWithEmailLink, signInWithEma
 import { app } from '@/lib/firebase';
 import { useToast } from './use-toast';
 import { useRouter, usePathname } from 'next/navigation';
+import FullscreenLoader from '@/components/harium-ai-loader';
 
 interface AuthContextType {
   user: User | null;
@@ -61,6 +62,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => unsubscribe();
   }, [toast, router, pathname]);
+
+  if (loading) {
+    return <FullscreenLoader />;
+  }
 
   return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>;
 };

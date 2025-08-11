@@ -295,62 +295,59 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     }
   }
 
-  const handleSendMessage = async (e: React.FormEvent, prompt?: string) => {
+  const handleSendMessage = async (e: React.FormEvent, promptOverride?: string) => {
     e.preventDefault();
-    const currentInput = prompt || input;
+    const currentInput = promptOverride || input;
     if (!currentInput.trim() || !userId) return;
-
+  
     const isNewChat = !chatId;
-
-    const userMessage: Message = { id: `user-${Date.now()}`, role: "user", content: currentInput, type: "text" };
-    
-    setMessages(prev => isNewChat ? [userMessage] : [...prev, userMessage]);
-    
-    if(!prompt) {
-        setInput("");
+    const userMessage: Message = { id: `user-${Date.now()}`, role: 'user', content: currentInput, type: 'text' };
+  
+    // Show the user message immediately.
+    setMessages((prev) => [...prev, userMessage]);
+  
+    if (!promptOverride) {
+      setInput('');
     }
     setIsLoading(true);
-
+  
     try {
-        const result = await converseWithAi({ prompt: currentInput, sessionId: currentSessionId, userId, chatMode, model });
-        
-        if (result.responseType === 'image') {
-          toast({
-              title: "Image Generated",
-              description: "Images are not saved in your chat history.",
-          });
-        }
-
-        if (isNewChat && result.newSessionId) {
-            router.push(`/chat/${result.newSessionId}`);
-            return;
-        }
-
-        const assistantMessage: Message = { 
-            id: `asst-${Date.now()}`, 
-            role: "assistant", 
-            content: result.response,
-            type: result.responseType
-        };
+      const result = await converseWithAi({ prompt: currentInput, sessionId: currentSessionId, userId, chatMode, model });
+  
+      const assistantMessage: Message = {
+        id: `asst-${Date.now()}`,
+        role: 'assistant',
+        content: result.response,
+        type: result.responseType,
+      };
+  
+      if (isNewChat && result.newSessionId) {
+        // For a new chat, we navigate and the new page will load the full history.
+        router.push(`/chat/${result.newSessionId}`);
+      } else {
+        // For an existing chat, just add the new message.
         setMessages((prev) => [...prev, assistantMessage]);
+      }
     } catch (error) {
-      console.error("Error in conversation:", error);
-      
+      console.error('Error in conversation:', error);
       toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to get a response from the AI.",
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to get a response from the AI.',
       });
+      // If there was an error, remove the user message that was optimistically added.
+      setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleRegenerate = () => {
-    if (messages.length < 2 || isLoading) return;
+    if (messages.length < 1 || isLoading) return;
     const lastUserMessage = messages.filter(m => m.role === 'user').at(-1);
     if(lastUserMessage) {
-        const newMessages = messages.slice(0, -1);
+        // Remove the last assistant response if it exists
+        const newMessages = messages.slice(0, messages.length - 1);
         setMessages(newMessages);
         handleSendMessage(new Event('submit') as unknown as React.FormEvent, lastUserMessage.content);
     }
@@ -608,3 +605,5 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     </div>
   );
 }
+
+    

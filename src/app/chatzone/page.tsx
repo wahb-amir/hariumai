@@ -144,9 +144,8 @@ export default function ChatzonePage() {
     if (!input.trim()) return;
 
     const userMessage: Message = { role: "user", content: input };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-
+    setMessages(prevMessages => [...prevMessages, userMessage]);
+    
     const currentInput = input;
     setInput("");
     setIsLoading(true);
@@ -164,7 +163,8 @@ export default function ChatzonePage() {
       if (response.ok) {
         const data = await response.json();
         const assistantMessage: Message = { role: "assistant", content: data.response };
-        setMessages([...newMessages, assistantMessage]);
+        setMessages(prevMessages => [...prevMessages, assistantMessage]);
+
         if (!currentChatId && data.sessionId) {
             setCurrentChatId(data.sessionId);
             loadSessions(); // Refresh session list
@@ -173,12 +173,12 @@ export default function ChatzonePage() {
         const errorText = await response.text();
         console.error("Backend error:", errorText);
         const errorMessage: Message = { role: "assistant", content: "Sorry, something went wrong." };
-        setMessages([...newMessages, errorMessage]);
+        setMessages(prevMessages => [...prevMessages, errorMessage]);
       }
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage: Message = { role: "assistant", content: "Sorry, I couldn't connect to the backend." };
-      setMessages([...newMessages, errorMessage]);
+      setMessages(prevMessages => [...prevMessages, errorMessage]);
     } finally {
       setIsLoading(false);
     }

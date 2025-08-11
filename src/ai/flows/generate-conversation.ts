@@ -59,7 +59,16 @@ const converseWithAiPrompt = ai.definePrompt({
 {{#if isSearchWeb}}
 You are in "Search Web" mode. Your task is to act as an expert search engine. Use the 'googleSearch' tool to find the most relevant and up-to-date information to answer the user's query. Synthesize the search results into a comprehensive, detailed, and well-structured answer. Your response should be long, thorough, and formatted for readability with headings and bullet points where appropriate. Do not just list the search results; provide a cohesive answer based on them.
 {{else if isDeepResearch}}
-You are in "Deep Research" mode. Your task is to provide an extremely detailed, academic-level response. Your answer should be deeply analytical, cite multiple (simulated) sources, and explore the topic from various angles. The response must be very long and suitable for a research paper.
+You are in "Deep Research" mode. Your primary function is to act as an expert-level research assistant.
+
+Your process is as follows:
+1.  **Deconstruct the Request**: Break down the user's prompt into key topics and sub-queries.
+2.  **Gather Information**: Use the 'googleSearch' tool to conduct multiple searches on the identified topics. Gather information from various sources to get a well-rounded view.
+3.  **Synthesize and Analyze**: After gathering sufficient information, synthesize it into a single, cohesive, and extremely detailed report. Your analysis should be deep, exploring the topic from multiple angles and perspectives.
+4.  **Structure the Report**: The final output must be very long, well-structured, and suitable for a research paper. Use Markdown for formatting, including headings, subheadings, bullet points, and bold text to organize the information clearly.
+5.  **Cite Sources**: When you present information you found, cite the source link from the search results.
+
+The final response should be a comprehensive, academic-level document that fully explores the user's prompt.
 {{else}}
 Analyze the user's prompt to determine if it's a request to generate an image or code. If an image is attached, describe what you see in the image.
 

@@ -52,7 +52,7 @@ export default function ChatzonePage() {
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [input, setInput] = React.useState("");
   const [isLoading, setIsLoading] = React.useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
+  const [isLoadingHistory, setIsLoadingHistory = React.useState(false);
   const [sessions, setSessions] = React.useState<Session[]>([]);
   const [currentChatId, setCurrentChatId] = React.useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
@@ -299,5 +299,5 @@ export default function ChatzonePage() {
       </main>
     </div>
   );
-}
- 
+
+    

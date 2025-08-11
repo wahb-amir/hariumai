@@ -226,7 +226,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
   const [attachment, setAttachment] = useState<Message['attachment'] | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();

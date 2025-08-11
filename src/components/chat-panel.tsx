@@ -20,6 +20,7 @@ import { getChatHistory } from "@/ai/flows/get-chat-history";
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { WebSearchEnablingLoader } from "./web-search-loader";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Message = {
   id: string;
@@ -737,5 +738,3 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
     </div>
   );
 }
-
-    

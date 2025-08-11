@@ -47,7 +47,7 @@ const CodeBlock = ({ code }: { code: string }) => {
     };
   
     return (
-      <div className="bg-black/80 text-white rounded-lg my-2 relative">
+      <div className="bg-black/80 text-white rounded-lg my-2 relative max-w-full">
         <Button
           variant="ghost"
           size="icon"

@@ -166,17 +166,32 @@ const converseWithAiFlow = ai.defineFlow(
             sessionId: currentSessionId,
         });
         
-        const imageResult = await generateImageFromText({ prompt });
-        await saveMessage({
-            role: 'assistant',
-            content: imageResult.imageUrl, // Save the image data URI
-            sessionId: currentSessionId,
-        });
+        try {
+            const imageResult = await generateImageFromText({ prompt });
+            await saveMessage({
+                role: 'assistant',
+                content: imageResult.imageUrl, // Save the image data URI
+                sessionId: currentSessionId,
+            });
 
-        return {
-            response: imageResult.imageUrl,
-            responseType: 'image',
-            newSessionId
+            return {
+                response: imageResult.imageUrl,
+                responseType: 'image',
+                newSessionId
+            }
+        } catch (error) {
+            console.error("Error generating image:", error);
+            const errorMessage = "Sorry, I couldn't generate an image for that prompt. It might be due to safety filters or other issues.";
+             await saveMessage({
+                role: 'assistant',
+                content: errorMessage,
+                sessionId: currentSessionId,
+            });
+            return {
+                response: errorMessage,
+                responseType: 'text',
+                newSessionId
+            }
         }
     }
 

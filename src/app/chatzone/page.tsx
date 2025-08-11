@@ -145,6 +145,7 @@ export default function ChatzonePage() {
 
     const userMessage: Message = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
+    const currentInput = input;
     setInput("");
     setIsLoading(true);
 
@@ -153,7 +154,7 @@ export default function ChatzonePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: input,
+          message: currentInput,
           sessionId: currentChatId,
         }),
       });
@@ -324,3 +325,5 @@ export default function ChatzonePage() {
     </div>
   );
 }
+
+    

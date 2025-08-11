@@ -20,6 +20,7 @@ import { getChatHistory } from "@/ai/flows/get-chat-history";
 import { getSession } from "@/services/chat-history";
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { WebSearchEnablingLoader } from "./web-search-loader";
 
 type Message = {
   id: string;
@@ -302,7 +303,6 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     setChatMode(mode);
     if (mode === 'search-web' && messages.length === 0) {
         setPreparingSearch(true);
-        setTimeout(() => setPreparingSearch(false), 2000);
     }
   }
 
@@ -466,19 +466,19 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
 
     const renderInitialScreen = () => {
         if (!chatId && messages.length === 0 && !isLoading) {
-            if (chatMode === 'search-web') {
+             if (chatMode === 'search-web' && preparingSearch) {
+                return (
+                    <div className="flex flex-col items-center justify-center h-full pt-24">
+                        <WebSearchEnablingLoader onComplete={() => setPreparingSearch(false)} />
+                    </div>
+                );
+            }
+            if (chatMode === 'search-web' && !preparingSearch) {
                 return (
                     <div className="flex flex-col items-center justify-center h-full pt-24 text-center">
                          <Search className="h-24 w-24" />
                          <h2 className="mt-6 text-2xl font-black">Search Web</h2>
-                         {preparingSearch ? (
-                            <div className="flex items-center gap-2 mt-2">
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                                <p className="text-muted-foreground">Preparing you search web...</p>
-                            </div>
-                         ) : (
-                            <p className="text-muted-foreground">Ask me anything to search across the web.</p>
-                         )}
+                         <p className="text-muted-foreground">Ask me anything to search across the web.</p>
                     </div>
                 )
             }

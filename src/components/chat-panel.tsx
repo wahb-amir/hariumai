@@ -683,3 +683,5 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
     </div>
   );
 }
+
+    

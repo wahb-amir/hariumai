@@ -17,7 +17,6 @@ import { HariumLogo } from "./harium-logo";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { getChatHistory } from "@/ai/flows/get-chat-history";
-import { getSession } from "@/services/chat-history";
 import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { WebSearchEnablingLoader } from "./web-search-loader";
@@ -35,12 +34,14 @@ type Message = {
   }
 };
 
+export type ChatMode = "chit-chat" | "search-web" | "deep-research";
+
 type ChatPanelProps = {
     chatId?: string;
     model?: string;
+    chatMode: ChatMode;
+    onChatModeChange: (mode: ChatMode) => void;
 }
-
-type ChatMode = "chit-chat" | "search-web" | "deep-research";
 
 type SearchStage = "google" | "facebook" | "web" | null;
 
@@ -215,13 +216,12 @@ function SearchWebLoader() {
     );
 }
 
-export function ChatPanel({ chatId, model }: ChatPanelProps) {
+export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [audioPlaying, setAudioPlaying] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
-  const [chatMode, setChatMode] = useState<ChatMode>("chit-chat");
   const [preparingSearch, setPreparingSearch] = useState(false);
   const [attachment, setAttachment] = useState<Message['attachment'] | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -236,8 +236,15 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
   useEffect(() => {
     if (chatId) {
       setCurrentSessionId(chatId);
+    } else {
+      // For a new chat, check the chatMode and trigger the loader if needed.
+      if (chatMode === 'search-web' && messages.length === 0) {
+        setPreparingSearch(true);
+      } else {
+        setPreparingSearch(false);
+      }
     }
-  }, [chatId]);
+  }, [chatId, chatMode, messages.length]);
 
 
   useEffect(() => {
@@ -256,15 +263,7 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
         if (chatId) {
             setIsLoading(true);
             try {
-                const [history, session] = await Promise.all([
-                    getChatHistory({ sessionId: chatId }),
-                    getSession(chatId)
-                ]);
-
-                if (session) {
-                    setChatMode(session.chatMode);
-                }
-
+                const history = await getChatHistory({ sessionId: chatId });
                 if (history.length > 0) {
                     const loadedMessages = history.map((item, index) => ({
                         id: `hist-${index}-${Date.now()}`,
@@ -298,13 +297,6 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  const handleSetMode = (mode: ChatMode) => {
-    setChatMode(mode);
-    if (mode === 'search-web' && messages.length === 0) {
-        setPreparingSearch(true);
-    }
-  }
 
   const handleSendMessage = async (e: React.FormEvent, promptOverride?: string) => {
     e.preventDefault();
@@ -465,7 +457,7 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
   }
 
     const renderInitialScreen = () => {
-        if (!chatId && messages.length === 0 && !isLoading) {
+        if (messages.length === 0 && !isLoading) {
              if (chatMode === 'search-web' && preparingSearch) {
                 return (
                     <div className="flex flex-col items-center justify-center h-full pt-24">

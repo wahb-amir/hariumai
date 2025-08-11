@@ -48,9 +48,18 @@ import { app } from "@/lib/firebase";
 import { getChatSessions } from "@/ai/flows/get-chat-sessions";
 import type { GetChatSessionsOutput } from "@/ai/flows/get-chat-sessions";
 import { v4 as uuidv4 } from "uuid";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from "./ui/dropdown-menu";
+import { type ChatMode } from "./chat-panel";
 
-function HariumAiLayoutClient({ children, model, onModelChange }: { children?: React.ReactNode, model: string, onModelChange: (model: string) => void }) {
+type HariumAiLayoutClientProps = {
+    children?: React.ReactNode;
+    model: string;
+    onModelChange: (model: string) => void;
+    chatMode: ChatMode;
+    onChatModeChange: (mode: ChatMode) => void;
+}
+
+function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChatModeChange }: HariumAiLayoutClientProps) {
   const [voiceResponses, setVoiceResponses] = React.useState(false);
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [chatSessions, setChatSessions] = React.useState<GetChatSessionsOutput>([]);
@@ -129,10 +138,17 @@ function HariumAiLayoutClient({ children, model, onModelChange }: { children?: R
     router.push('/');
   }
 
+  const handleSetMode = (mode: ChatMode) => {
+    onChatModeChange(mode);
+    if (pathname !== '/') {
+        router.push('/');
+    }
+  }
+
   const mainContent = React.Children.map(children, child => {
     if (React.isValidElement(child)) {
       // @ts-ignore
-      return React.cloneElement(child, { model });
+      return React.cloneElement(child, { model, chatMode, onChatModeChange });
     }
     return child;
   });
@@ -287,18 +303,18 @@ function HariumAiLayoutClient({ children, model, onModelChange }: { children?: R
                 <DropdownMenuContent align="end">
                     <DropdownMenuLabel>AI Modes</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
+                    <DropdownMenuCheckboxItem checked={chatMode === 'chit-chat'} onSelect={() => handleSetMode('chit-chat')}>
                         <MessageSquare className="mr-2 h-4 w-4" />
                         <span>Chit Chatting</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    </DropdownMenuCheckboxItem>
+                     <DropdownMenuCheckboxItem checked={chatMode === 'search-web'} onSelect={() => handleSetMode('search-web')}>
                         <Search className="mr-2 h-4 w-4" />
                         <span>Search Web</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem checked={chatMode === 'deep-research'} onSelect={() => handleSetMode('deep-research')}>
                         <BrainCircuit className="mr-2 h-4 w-4" />
                         <span>Deep Research</span>
-                    </DropdownMenuItem>
+                    </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -312,12 +328,20 @@ function HariumAiLayoutClient({ children, model, onModelChange }: { children?: R
 }
 
 
-export function HariumAiLayout({ children, model, onModelChange }: { children?: React.ReactNode, model: string, onModelChange: (model: string) => void }) {
+type HariumAiLayoutProps = {
+    children?: React.ReactNode;
+    model: string;
+    onModelChange: (model: string) => void;
+    chatMode: ChatMode;
+    onChatModeChange: (mode: ChatMode) => void;
+};
+
+export function HariumAiLayout({ children, model, onModelChange, chatMode, onChatModeChange }: HariumAiLayoutProps) {
     return (
         <AuthProvider>
-            <HariumAiLayoutClient model={model} onModelChange={onModelChange}>{children}</HariumAiLayoutClient>
+            <HariumAiLayoutClient model={model} onModelChange={onModelChange} chatMode={chatMode} onChatModeChange={onChatModeChange}>
+                {children}
+            </HariumAiLayoutClient>
         </AuthProvider>
     )
 }
-
-    

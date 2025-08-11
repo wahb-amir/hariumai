@@ -26,6 +26,11 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   type: "text" | "image";
+  file?: {
+    name: string;
+    type: string;
+    size: number;
+  }
 };
 
 type ChatPanelProps = {
@@ -410,11 +415,33 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
   const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-        // TODO: Handle file upload and message sending
+      const reader = new FileReader();
+      reader.onload = (loadEvent) => {
+        const dataUrl = loadEvent.target?.result as string;
+        const messageType = file.type.startsWith('image/') ? 'image' : 'text';
+
+        const fileMessage: Message = {
+            id: `file-${Date.now()}`,
+            role: 'user',
+            content: messageType === 'image' ? dataUrl : file.name,
+            type: messageType,
+            file: {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+            }
+        };
+        setMessages((prev) => [...prev, fileMessage]);
         toast({
-            title: "File selected",
-            description: `${file.name} is ready to be sent.`,
+            title: "Attachment Added",
+            description: `${file.name} has been attached. It will be sent with your next message. Note: attachments are not saved.`,
         });
+      }
+      reader.readAsDataURL(file);
+    }
+     // Reset file input
+     if(e.target) {
+        e.target.value = '';
     }
   }
 
@@ -516,13 +543,24 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
                         data-ai-hint="generated image"
                     />
                 ) : (
-                    <div className="text-sm leading-relaxed break-words">
-                        {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
-                            <Typewriter text={message.content} />
-                        ) : (
-                            <MarkdownRenderer text={message.content} />
+                    <>
+                        {message.file && (
+                             <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
+                                <File className="h-6 w-6" />
+                                <div className="text-sm">
+                                    <p className="font-semibold">{message.file.name}</p>
+                                    <p className="text-xs">{Math.round(message.file.size / 1024)} KB</p>
+                                </div>
+                            </div>
                         )}
-                    </div>
+                        <div className="text-sm leading-relaxed break-words">
+                            {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
+                                <Typewriter text={message.content} />
+                            ) : (
+                                <MarkdownRenderer text={message.content} />
+                            )}
+                        </div>
+                    </>
                 )}
                 
                 {message.role === 'assistant' && !isLoading && index === messages.length - 1 && message.type === 'text' && (
@@ -643,7 +681,5 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     </div>
   );
 }
-
-    
 
     

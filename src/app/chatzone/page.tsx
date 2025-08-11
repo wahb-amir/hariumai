@@ -303,7 +303,7 @@ export default function ChatzonePage() {
                     )}
                     </div>
                 ))}
-                {isLoading && (
+                {isLoading && messages.length > 0 && messages[messages.length - 1].role === 'user' && (
                     <div className="flex items-start gap-4">
                         <Avatar className="h-8 w-8 border-none bg-green-500 text-white">
                             <AvatarFallback className="bg-transparent">

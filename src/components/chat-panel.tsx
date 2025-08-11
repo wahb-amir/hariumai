@@ -25,7 +25,7 @@ type Message = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  type: "text" | "image";
+  type: "text" | "image" | "harium-browser";
   attachment?: {
     name: string;
     type: string;
@@ -165,11 +165,16 @@ function Typewriter({ text }: { text: string }) {
     );
 }
 
-function HariumBrowserAnimation({ query }: { query: string }) {
+function HariumBrowser({ query, answer }: { query: string, answer?: string }) {
     const [displayedQuery, setDisplayedQuery] = useState("");
-    const [status, setStatus] = useState<"typing" | "searching" | "finding">("typing");
+    const [status, setStatus] = useState<"typing" | "searching" | "finding" | "complete">("typing");
 
     useEffect(() => {
+        if (answer) {
+            setStatus("complete");
+            return;
+        }
+
         let i = 0;
         const typingInterval = setInterval(() => {
             if (i < query.length) {
@@ -183,12 +188,13 @@ function HariumBrowserAnimation({ query }: { query: string }) {
         }, 50);
 
         return () => clearInterval(typingInterval);
-    }, [query]);
+    }, [query, answer]);
 
     const statusText = {
         typing: <span className="text-muted-foreground">{displayedQuery}<span className="animate-pulse">|</span></span>,
         searching: <span className="text-foreground">Searching...</span>,
-        finding: <span className="text-foreground">Finding best results...</span>
+        finding: <span className="text-foreground">Finding best results...</span>,
+        complete: <span className="text-foreground">{query}</span>
     }[status];
 
     return (
@@ -198,7 +204,7 @@ function HariumBrowserAnimation({ query }: { query: string }) {
                     <HariumLogo className="h-8 w-8" />
                 </AvatarFallback>
             </Avatar>
-            <div className="w-full max-w-md rounded-lg bg-card border shadow-sm animate-in fade-in-50">
+            <div className="w-full max-w-3xl rounded-lg bg-card border shadow-sm animate-in fade-in-50">
                 <div className="h-9 flex items-center px-3 border-b">
                     <div className="flex items-center gap-1.5">
                         <div className="h-2.5 w-2.5 rounded-full bg-red-500"></div>
@@ -209,11 +215,27 @@ function HariumBrowserAnimation({ query }: { query: string }) {
                         Harium Browser
                     </div>
                 </div>
-                <div className="p-3">
+                <div className="p-3 border-b">
                     <div className="flex items-center gap-2 rounded-md bg-secondary px-3 h-8 text-sm">
                         <Search className="h-4 w-4 text-muted-foreground" />
                         {statusText}
                     </div>
+                </div>
+                 <div className="p-4 bg-background">
+                    {status !== 'complete' ? (
+                         <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                                <Skeleton className="h-4 w-4 rounded-full" />
+                                <Skeleton className="h-4 w-[250px]" />
+                            </div>
+                            <Skeleton className="h-4 w-[90%]" />
+                            <Skeleton className="h-4 w-[80%]" />
+                         </div>
+                    ) : (
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <MarkdownRenderer text={answer || ""} />
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -306,45 +328,66 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
     e.preventDefault();
     const currentInput = promptOverride || input;
     if (!currentInput.trim() || !userId) return;
-  
+
     const isNewChat = !chatId;
-    const userMessage: Message = { 
-        id: `user-${Date.now()}`, 
-        role: 'user', 
-        content: currentInput, 
-        type: 'text',
-        attachment: attachment || undefined,
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: currentInput,
+      type: 'text',
+      attachment: attachment || undefined,
     };
-  
+
     setMessages((prev) => [...prev, userMessage]);
-  
+
     if (!promptOverride) {
       setInput('');
       setAttachment(null);
     }
     setIsLoading(true);
-  
+    
+    let assistantMessageId: string | null = null;
+    if (chatMode === 'search-web') {
+        const browserMessage: Message = {
+            id: `asst-${Date.now()}`,
+            role: 'assistant',
+            content: currentInput, // Pass query to browser animation
+            type: 'harium-browser',
+        };
+        assistantMessageId = browserMessage.id;
+        setMessages((prev) => [...prev, browserMessage]);
+    }
+
     try {
-      const result = await converseWithAi({ 
-          prompt: currentInput, 
-          sessionId: currentSessionId, 
-          userId, 
-          chatMode, 
-          model,
-          attachmentDataUri: attachment?.dataUrl
+      const result = await converseWithAi({
+        prompt: currentInput,
+        sessionId: currentSessionId,
+        userId,
+        chatMode,
+        model,
+        attachmentDataUri: attachment?.dataUrl
       });
-  
+
       const assistantMessage: Message = {
         id: `asst-${Date.now()}`,
         role: 'assistant',
         content: result.response,
         type: result.responseType,
       };
-  
+
       if (isNewChat && result.newSessionId) {
         router.push(`/chat/${result.newSessionId}`);
       } else {
-        setMessages((prev) => [...prev, assistantMessage]);
+          if (chatMode === 'search-web' && assistantMessageId) {
+            // Update the browser message with the final answer
+            setMessages((prev) => prev.map(msg => 
+                msg.id === assistantMessageId 
+                ? { ...msg, content: result.response } 
+                : msg
+            ));
+          } else {
+            setMessages((prev) => [...prev, assistantMessage]);
+          }
       }
     } catch (error) {
       console.error('Error in conversation:', error);
@@ -363,7 +406,10 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
     if (messages.length < 1 || isLoading) return;
     const lastUserMessage = messages.filter(m => m.role === 'user').at(-1);
     if(lastUserMessage) {
-        const newMessages = messages.slice(0, messages.length - 1);
+        const lastMessage = messages.at(-1);
+        // If the last message was a browser result, remove both it and the user message
+        const messagesToRemove = (lastMessage?.type === 'harium-browser' || lastMessage?.role === 'assistant') ? 2 : 1;
+        const newMessages = messages.slice(0, messages.length - messagesToRemove);
         setMessages(newMessages);
         handleSendMessage(new Event('submit') as unknown as React.FormEvent, lastUserMessage.content);
     }
@@ -507,117 +553,121 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
         <div className="space-y-6 max-w-3xl mx-auto py-8">
             {renderInitialScreen()}
           {messages.map((message, index) => (
-            <div key={message.id} className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
-              {message.role === "assistant" && (
-                 <Avatar className="h-8 w-8 border-none bg-transparent">
-                  <AvatarFallback className="bg-transparent text-transparent">
-                    <HariumLogo className="h-8 w-8" />
-                  </AvatarFallback>
-                </Avatar>
-              )}
-              <div
-                className={cn(
-                  "max-w-[75%] rounded-lg p-3",
-                  message.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-card",
-                )}
-              >
-                {message.type === 'image' ? (
-                   <Image
-                        src={message.content}
-                        alt="Generated image"
-                        width={512}
-                        height={512}
-                        className="rounded-lg"
-                        data-ai-hint="generated image"
-                    />
+            <div key={message.id}>
+                {message.type === 'harium-browser' ? (
+                     <HariumBrowser query={messages.find(m => m.role === 'user')?.content || ''} answer={message.content} />
                 ) : (
-                    <>
-                        {message.attachment && (
-                             <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
-                                {message.attachment.type.startsWith('image/') ? (
-                                    <Image src={message.attachment.dataUrl} alt={message.attachment.name} width={48} height={48} className="rounded-md" />
-                                ) : (
-                                    <File className="h-6 w-6" />
+                    <div className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
+                    {message.role === "assistant" && (
+                        <Avatar className="h-8 w-8 border-none bg-transparent">
+                        <AvatarFallback className="bg-transparent text-transparent">
+                            <HariumLogo className="h-8 w-8" />
+                        </AvatarFallback>
+                        </Avatar>
+                    )}
+                    <div
+                        className={cn(
+                        "max-w-[75%] rounded-lg p-3",
+                        message.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-card",
+                        )}
+                    >
+                        {message.type === 'image' ? (
+                        <Image
+                                src={message.content}
+                                alt="Generated image"
+                                width={512}
+                                height={512}
+                                className="rounded-lg"
+                                data-ai-hint="generated image"
+                            />
+                        ) : (
+                            <>
+                                {message.attachment && (
+                                    <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
+                                        {message.attachment.type.startsWith('image/') ? (
+                                            <Image src={message.attachment.dataUrl} alt={message.attachment.name} width={48} height={48} className="rounded-md" />
+                                        ) : (
+                                            <File className="h-6 w-6" />
+                                        )}
+                                        <div className="text-sm">
+                                            <p className="font-semibold">{message.attachment.name}</p>
+                                            <p className="text-xs">{Math.round(message.attachment.size / 1024)} KB</p>
+                                        </div>
+                                    </div>
                                 )}
-                                <div className="text-sm">
-                                    <p className="font-semibold">{message.attachment.name}</p>
-                                    <p className="text-xs">{Math.round(message.attachment.size / 1024)} KB</p>
+                                <div className="text-sm leading-relaxed break-words">
+                                    {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
+                                        <Typewriter text={message.content} />
+                                    ) : (
+                                        <MarkdownRenderer text={message.content} />
+                                    )}
                                 </div>
+                            </>
+                        )}
+                        
+                        {message.role === 'assistant' && !isLoading && index === messages.length - 1 && message.type === 'text' && (
+                            <div className="mt-2 flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handlePlayAudio(message.id, message.content)}
+                                    disabled={audioPlaying !== null && audioPlaying !== message.id}
+                                    title="Play audio"
+                                >
+                                    {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
+                                    <span className="sr-only">Play audio</span>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handleCopy(message.content)}
+                                    title="Copy response"
+                                >
+                                    <Copy className="h-4 w-4" />
+                                    <span className="sr-only">Copy response</span>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    onClick={handleRegenerate}
+                                    disabled={isLoading}
+                                    title="Regenerate response"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                    <span className="sr-only">Regenerate response</span>
+                                </Button>
                             </div>
                         )}
-                        <div className="text-sm leading-relaxed break-words">
-                            {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
-                                <Typewriter text={message.content} />
-                            ) : (
-                                <MarkdownRenderer text={message.content} />
-                            )}
-                        </div>
-                    </>
-                )}
-                
-                {message.role === 'assistant' && !isLoading && index === messages.length - 1 && message.type === 'text' && (
-                    <div className="mt-2 flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={() => handlePlayAudio(message.id, message.content)}
-                            disabled={audioPlaying !== null && audioPlaying !== message.id}
-                            title="Play audio"
-                        >
-                            {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
-                            <span className="sr-only">Play audio</span>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={() => handleCopy(message.content)}
-                            title="Copy response"
-                        >
-                            <Copy className="h-4 w-4" />
-                            <span className="sr-only">Copy response</span>
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                            onClick={handleRegenerate}
-                            disabled={isLoading}
-                            title="Regenerate response"
-                        >
-                            <RefreshCw className="h-4 w-4" />
-                            <span className="sr-only">Regenerate response</span>
-                        </Button>
+                    </div>
+                    {message.role === "user" && (
+                        <Avatar className="h-8 w-8 border bg-background">
+                            <AvatarFallback className="bg-primary text-primary-foreground"><User className="h-5 w-5" /></AvatarFallback>
+                        </Avatar>
+                    )}
                     </div>
                 )}
-              </div>
-              {message.role === "user" && (
-                 <Avatar className="h-8 w-8 border bg-background">
-                    <AvatarFallback className="bg-primary text-primary-foreground"><User className="h-5 w-5" /></AvatarFallback>
-                </Avatar>
-              )}
             </div>
           ))}
-           {isLoading && messages.length > 0 && (
+           {isLoading && messages.length > 0 && messages.at(-1)?.type !== 'harium-browser' && (
             <>
-                {chatMode === 'search-web' ? <HariumBrowserAnimation query={messages.at(-1)?.content || ""} /> : (
-                    <div className="flex items-start gap-4">
-                        <Avatar className="h-8 w-8 border-none bg-transparent">
-                            <AvatarFallback className="bg-transparent text-transparent">
-                                <HariumLogo className="h-8 w-8" />
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
-                            {chatMode === 'deep-research' ? <BrainCircuit className="h-5 w-5 animate-spin" /> : <Loader2 className="h-5 w-5 animate-spin" />}
-                            <span className="text-sm text-muted-foreground">
-                                {chatMode === 'deep-research' ? 'Performing deep research...' : 'HariumAI is thinking...'}
-                            </span>
-                        </div>
+                <div className="flex items-start gap-4">
+                    <Avatar className="h-8 w-8 border-none bg-transparent">
+                        <AvatarFallback className="bg-transparent text-transparent">
+                            <HariumLogo className="h-8 w-8" />
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
+                        {chatMode === 'deep-research' ? <BrainCircuit className="h-5 w-5 animate-spin" /> : <Loader2 className="h-5 w-5 animate-spin" />}
+                        <span className="text-sm text-muted-foreground">
+                            {chatMode === 'deep-research' ? 'Performing deep research...' : 'HariumAI is thinking...'}
+                        </span>
                     </div>
-                )}
+                </div>
             </>
           )}
           <div ref={messagesEndRef} />
@@ -687,7 +737,5 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
     </div>
   );
 }
-
-    
 
     

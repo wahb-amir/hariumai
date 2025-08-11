@@ -34,6 +34,9 @@ import {
   PlusCircle,
   History,
   ChevronDown,
+  MoreVertical,
+  Search,
+  BrainCircuit,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -45,7 +48,7 @@ import { app } from "@/lib/firebase";
 import { getChatSessions } from "@/ai/flows/get-chat-sessions";
 import type { GetChatSessionsOutput } from "@/ai/flows/get-chat-sessions";
 import { v4 as uuidv4 } from "uuid";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from "./ui/dropdown-menu";
 
 function HariumAiLayoutClient({ children, model, onModelChange }: { children?: React.ReactNode, model: string, onModelChange: (model: string) => void }) {
   const [voiceResponses, setVoiceResponses] = React.useState(false);
@@ -273,7 +276,32 @@ function HariumAiLayoutClient({ children, model, onModelChange }: { children?: R
                 </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="flex items-center gap-2"></div>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                        <MoreVertical className="h-5 w-5" />
+                        <span className="sr-only">Options</span>
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>AI Modes</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        <span>Chit Chatting</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                        <Search className="mr-2 h-4 w-4" />
+                        <span>Search Web</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                        <BrainCircuit className="mr-2 h-4 w-4" />
+                        <span>Deep Research</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
         <main className="flex-1 flex flex-col relative">
           {mainContent}
@@ -291,3 +319,5 @@ export function HariumAiLayout({ children, model, onModelChange }: { children?: 
         </AuthProvider>
     )
 }
+
+    

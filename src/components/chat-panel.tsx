@@ -506,32 +506,7 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
   return (
     <div className="flex flex-col h-full">
         <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelected} />
-        <div className="flex justify-end p-2 absolute top-20 right-4 z-20">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" disabled={!!chatId}>
-                        <MoreVertical className="h-5 w-5" />
-                        <span className="sr-only">Options</span>
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>AI Modes</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => handleSetMode('chit-chat')}>
-                        <MessageSquare className="mr-2 h-4 w-4" />
-                        <span>Chit Chatting</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => handleSetMode('search-web')}>
-                        <Search className="mr-2 h-4 w-4" />
-                        <span>Search Web</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => handleSetMode('deep-research')}>
-                        <BrainCircuit className="mr-2 h-4 w-4" />
-                        <span>Deep Research</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
+        
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-3xl mx-auto py-8">
             {renderInitialScreen()}
@@ -716,3 +691,5 @@ export function ChatPanel({ chatId, model }: ChatPanelProps) {
     </div>
   );
 }
+
+    

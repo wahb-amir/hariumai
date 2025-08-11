@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
@@ -6,6 +7,7 @@ import { app } from '@/lib/firebase';
 import { useToast } from './use-toast';
 import { useRouter, usePathname } from 'next/navigation';
 import FullscreenLoader from '@/components/harium-ai-loader';
+import { cn } from '@/lib/utils';
 
 interface AuthContextType {
   user: User | null;
@@ -17,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({ user: null, loading: true }
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUnlocking, setIsUnlocking] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -63,11 +66,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, [toast, router, pathname]);
 
-  if (loading) {
-    return <FullscreenLoader />;
+  useEffect(() => {
+    if (!loading) {
+      // Start the unlock animation after the initial loading is done
+      setIsUnlocking(true);
+    }
+  }, [loading]);
+
+  if (loading || !isUnlocking) {
+    return <FullscreenLoader isUnlocking={isUnlocking} />;
   }
 
-  return <AuthContext.Provider value={{ user, loading }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, loading: false }}>
+        <div className="animate-app-fade-in-up">
+            {children}
+        </div>
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => useContext(AuthContext);

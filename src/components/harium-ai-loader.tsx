@@ -2,6 +2,7 @@
 'use client';
 
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 // HariumAiLoader Component: A larger, scaled-up version for desktop displays.
 export const HariumAiLoader = () => {
@@ -72,10 +73,14 @@ export const HariumAiLoader = () => {
 };
 
 // Main App Component: This component centers and displays the loader.
-export default function FullscreenLoader() {
+export default function FullscreenLoader({ isUnlocking }: { isUnlocking?: boolean }) {
   return (
-    <div className="flex items-center justify-center w-screen h-screen bg-white font-sans">
+    <div className={cn(
+        "flex items-center justify-center w-screen h-screen bg-white font-sans transition-opacity duration-500",
+        isUnlocking ? "animate-loader-fade-out" : "opacity-100"
+    )}>
       <HariumAiLoader />
     </div>
   );
 }
+

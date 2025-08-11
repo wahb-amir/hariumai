@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusCircle, MessageSquare, User, Bot, Send, Loader2 } from "lucide-react";
+import { PlusCircle, MessageSquare, User, Bot, Send, Loader2, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -55,6 +55,7 @@ export default function ChatzonePage() {
   const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
   const [sessions, setSessions] = React.useState<Session[]>([]);
   const [currentChatId, setCurrentChatId] = React.useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -73,7 +74,6 @@ export default function ChatzonePage() {
         setSessions(data);
       } else {
         console.error("Failed to fetch sessions");
-        // Keep sessions as an empty array
         setSessions([]);
       }
     } catch (error) {
@@ -155,28 +155,31 @@ export default function ChatzonePage() {
 
 
   return (
-    <div className="flex h-screen bg-background text-foreground font-sans">
+    <div className="flex h-screen bg-gray-100 text-gray-800 font-sans">
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white flex flex-col p-2">
+      <aside className={cn(
+        "bg-green-800 text-white flex flex-col p-2 transition-all duration-300 ease-in-out",
+        isSidebarOpen ? "w-64" : "w-0 p-0 overflow-hidden"
+      )}>
         <div className="p-2">
-            <h1 className="text-xl font-black text-center">ChatZone AI Beta</h1>
+            <h1 className="text-xl font-black text-center text-white">ChatZone AI Beta</h1>
         </div>
         <div className="p-2">
-          <Button onClick={handleNewChat} variant="ghost" className="w-full justify-start gap-2 text-white hover:bg-gray-700 hover:text-white">
+          <Button onClick={handleNewChat} variant="ghost" className="w-full justify-start gap-2 text-white hover:bg-green-700 hover:text-white">
             <PlusCircle className="h-5 w-5" />
             New Chat
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto mt-4">
-            <h2 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">Recent Chats</h2>
+            <h2 className="px-4 text-xs font-semibold text-gray-300 uppercase tracking-wider">Recent Chats</h2>
             <ul className="mt-2 space-y-1">
                 {sessions.length > 0 ? sessions.map((session) => (
                     <li key={session._id}>
                         <Button
                             variant="ghost"
                             className={cn(
-                                "w-full justify-start gap-2 text-white hover:bg-gray-700 hover:text-white",
-                                currentChatId === session._id && "bg-gray-700"
+                                "w-full justify-start gap-2 text-white hover:bg-green-700 hover:text-white",
+                                currentChatId === session._id && "bg-green-700"
                             )}
                             onClick={() => loadChat(session._id)}
                             disabled={isLoadingHistory}
@@ -186,12 +189,12 @@ export default function ChatzonePage() {
                         </Button>
                     </li>
                 )) : (
-                    <p className="px-4 text-sm text-gray-500">No recent chats.</p>
+                    <p className="px-4 text-sm text-gray-400">No recent chats.</p>
                 )}
             </ul>
         </div>
-        <div className="p-2 border-t border-gray-700">
-            <Button variant="ghost" className="w-full justify-start gap-2 text-white hover:bg-gray-700 hover:text-white">
+        <div className="p-2 border-t border-green-700">
+            <Button variant="ghost" className="w-full justify-start gap-2 text-white hover:bg-green-700 hover:text-white">
                 <User className="h-5 w-5" />
                 Profile
             </Button>
@@ -200,34 +203,41 @@ export default function ChatzonePage() {
 
       {/* Main Chat Area */}
       <main className="flex-1 flex flex-col">
-        <header className="p-4 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10">
-            <h2 className="text-lg font-bold">Chat</h2>
+        <header className="p-4 border-b flex items-center justify-between sticky top-0 bg-white/80 backdrop-blur-sm z-10">
+            <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="h-8 w-8">
+                    <Menu className="h-5 w-5" />
+                </Button>
+                <h2 className="text-lg font-bold">Chat</h2>
+            </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
             <div className="space-y-6 max-w-3xl mx-auto">
                 {messages.length === 0 && !isLoading && !isLoadingHistory && (
                     <div className="flex flex-col items-center justify-center h-full text-center text-gray-500">
-                        <HariumLogo className="h-24 w-24" />
-                        <h2 className="mt-6 text-2xl font-black">ChatZone AI</h2>
-                        <p className="text-muted-foreground">Start a conversation to begin.</p>
+                        <div className="p-4 bg-green-500 rounded-full">
+                            <Bot className="h-12 w-12 text-white" />
+                        </div>
+                        <h2 className="mt-6 text-2xl font-bold text-gray-700">ChatZone AI</h2>
+                        <p className="text-gray-500">Start a conversation to begin.</p>
                     </div>
                 )}
                  {isLoadingHistory && (
                     <div className="flex justify-center items-center h-full">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        <Loader2 className="h-8 w-8 animate-spin text-green-600" />
                     </div>
                 )}
                 {!isLoadingHistory && messages.map((message, index) => (
                     <div key={index} className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
                     {message.role === "assistant" && (
-                        <Avatar className="h-8 w-8 border-none bg-transparent">
-                            <AvatarFallback className="bg-transparent text-transparent">
-                                <HariumLogo className="h-8 w-8" />
+                        <Avatar className="h-8 w-8 border-none bg-green-500 text-white">
+                            <AvatarFallback className="bg-transparent">
+                                <Bot className="h-5 w-5" />
                             </AvatarFallback>
                         </Avatar>
                     )}
-                    <div className={cn("max-w-[75%] rounded-lg p-3", message.role === "user" ? "bg-primary text-primary-foreground" : "bg-card")}>
+                    <div className={cn("max-w-[75%] rounded-lg p-3 shadow-sm", message.role === "user" ? "bg-green-600 text-white" : "bg-white text-gray-800")}>
                         {message.role === 'assistant' && isLoading && index === messages.length - 1 ? (
                             <Typewriter text={message.content} />
                         ) : (
@@ -235,8 +245,8 @@ export default function ChatzonePage() {
                         )}
                     </div>
                     {message.role === "user" && (
-                        <Avatar className="h-8 w-8 border bg-background">
-                            <AvatarFallback className="bg-primary text-primary-foreground">
+                        <Avatar className="h-8 w-8 border bg-white">
+                            <AvatarFallback className="bg-gray-200 text-gray-600">
                                 <User className="h-5 w-5" />
                             </AvatarFallback>
                         </Avatar>
@@ -245,14 +255,14 @@ export default function ChatzonePage() {
                 ))}
                 {isLoading && (
                     <div className="flex items-start gap-4">
-                        <Avatar className="h-8 w-8 border-none bg-transparent">
-                            <AvatarFallback className="bg-transparent text-transparent">
-                                <HariumLogo className="h-8 w-8" />
+                        <Avatar className="h-8 w-8 border-none bg-green-500 text-white">
+                            <AvatarFallback className="bg-transparent">
+                                <Bot className="h-5 w-5" />
                             </AvatarFallback>
                         </Avatar>
-                        <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
-                           <Loader2 className="h-5 w-5 animate-spin" />
-                           <span className="text-sm text-muted-foreground">ChatZone AI is thinking...</span>
+                        <div className="bg-white rounded-lg p-3 flex items-center space-x-2 shadow-sm">
+                           <Loader2 className="h-5 w-5 animate-spin text-green-600" />
+                           <span className="text-sm text-gray-500">ChatZone AI is thinking...</span>
                         </div>
                     </div>
                 )}
@@ -260,14 +270,14 @@ export default function ChatzonePage() {
             </div>
         </div>
 
-        <div className="border-t p-4 bg-background">
+        <div className="border-t p-4 bg-white">
             <div className="max-w-3xl mx-auto">
                 <form onSubmit={handleSendMessage} className="relative">
                 <Textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Send a message..."
-                    className="flex-1 resize-none rounded-full bg-secondary border-none pl-4 pr-12 py-3 min-h-0 h-12"
+                    className="flex-1 resize-none rounded-full bg-gray-100 border-gray-300 focus:border-green-500 focus:ring-green-500 pl-4 pr-12 py-3 min-h-0 h-12"
                     rows={1}
                     onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
@@ -278,7 +288,7 @@ export default function ChatzonePage() {
                     disabled={isLoading || isLoadingHistory}
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isLoading || isLoadingHistory || !input.trim()}>
+                    <Button type="submit" size="icon" className="h-8 w-8 rounded-full bg-green-600 hover:bg-green-700 text-white" disabled={isLoading || isLoadingHistory || !input.trim()}>
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         <span className="sr-only">Send</span>
                     </Button>
@@ -290,3 +300,4 @@ export default function ChatzonePage() {
     </div>
   );
 }
+ 

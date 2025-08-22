@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -50,6 +51,8 @@ type ChatPanelProps = {
     chatMode: ChatMode;
     onChatModeChange: (mode: ChatMode) => void;
     voiceResponses: boolean;
+    isRecording: boolean;
+    onToggleRecording: () => void;
 }
 
 const CodeBlock = ({ code }: { code: string }) => {
@@ -251,7 +254,7 @@ function HariumBrowser({ query, answer }: { query: string, answer?: string }) {
     );
 }
 
-export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResponses }: ChatPanelProps) {
+export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResponses, isRecording, onToggleRecording }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -259,7 +262,6 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
   const [userId, setUserId] = useState<string | null>(null);
   const [preparingSearch, setPreparingSearch] = useState(false);
   const [attachment, setAttachment] = useState<Message['attachment'] | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -449,10 +451,10 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         window.dispatchEvent(new Event('chat-updated'));
       }
       
-      if (chatMode === 'search-web' && assistantMessageId) {
+      if (chatMode === 'search-web' && assistantMessageId && browserMessage) {
         setMessages((prev) => prev.map(msg => 
             msg.id === assistantMessageId 
-            ? { ...browserMessage!, content: result.response } 
+            ? { ...browserMessage, content: result.response } 
             : msg
         ));
       } else {
@@ -547,7 +549,6 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
   const handleMicClick = () => {
     if (isRecording) {
       recognitionRef.current?.stop();
-      setIsRecording(false);
     } else {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -561,17 +562,21 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       recognitionRef.current.lang = 'en-US';
 
       recognitionRef.current.onstart = () => {
-        setIsRecording(true);
+        onToggleRecording(); // Sync state with layout
         toast({ title: "Listening...", description: "Start speaking now." });
       };
 
       recognitionRef.current.onend = () => {
-        setIsRecording(false);
+        if(isRecording) {
+           onToggleRecording(); // Sync state with layout
+        }
       };
 
       recognitionRef.current.onerror = (event: any) => {
         toast({ variant: "destructive", title: "Speech Recognition Error", description: event.error });
-        setIsRecording(false);
+         if(isRecording) {
+           onToggleRecording(); // Sync state with layout
+        }
       };
       
       recognitionRef.current.onresult = (event: any) => {

@@ -8,5 +8,9 @@ import '@/ai/flows/generate-conversation.ts';
 import '@/ai/flows/get-chat-history.ts';
 import '@/ai/flows/generate-chat-title.ts';
 import '@/ai/flows/get-chat-sessions.ts';
+import '@/ai/flows/rename-chat-session.ts';
+import '@/ai/flows/delete-chat-session.ts';
+import '@/ai/flows/delete-all-chat-sessions.ts';
 import '@/ai/tools/google-search-tool.ts';
+
 

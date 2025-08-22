@@ -19,6 +19,7 @@ import {
   SidebarGroupLabel,
   SidebarSeparator,
   SidebarInset,
+  SidebarMenuAction,
 } from "@/components/ui/sidebar";
 import {
   Users,
@@ -37,9 +38,14 @@ import {
   MoreVertical,
   Search,
   BrainCircuit,
+  Phone,
+  Trash2,
+  Edit,
+  Delete,
   Clapperboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { HariumLogo } from "./harium-logo";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
@@ -47,10 +53,17 @@ import { getAuth, signOut } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { app } from "@/lib/firebase";
 import { getChatSessions } from "@/ai/flows/get-chat-sessions";
+import { renameChatSession } from "@/ai/flows/rename-chat-session";
+import { deleteChatSession } from "@/ai/flows/delete-chat-session";
+import { deleteAllChatSessions } from "@/ai/flows/delete-all-chat-sessions";
 import type { GetChatSessionsOutput } from "@/ai/flows/get-chat-sessions";
 import { v4 as uuidv4 } from "uuid";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem } from "./ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "./ui/alert-dialog";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import { Label } from "./ui/label";
 import { type ChatMode } from "./chat-panel";
+import { cn } from "@/lib/utils";
 
 type HariumAiLayoutClientProps = {
     children?: React.ReactNode;
@@ -65,6 +78,8 @@ type HariumAiLayoutClientProps = {
 function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChatModeChange, voiceResponses, onVoiceResponsesChange }: HariumAiLayoutClientProps) {
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [chatSessions, setChatSessions] = React.useState<GetChatSessionsOutput>([]);
+  const [renameTarget, setRenameTarget] = React.useState<{ id: string; title: string } | null>(null);
+  const [newTitle, setNewTitle] = React.useState("");
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
@@ -118,6 +133,7 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
                 description: 'You have been successfully signed out.'
             });
             localStorage.removeItem('anonymous_user_id');
+            setChatSessions([]);
             router.push('/login');
         }
     } catch (error) {
@@ -144,6 +160,53 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
     onChatModeChange(mode);
     if (pathname !== '/') {
         router.push('/');
+    }
+  }
+
+  const handleRename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!renameTarget || !newTitle.trim() || !userId) return;
+
+    try {
+        await renameChatSession({ sessionId: renameTarget.id, userId, newTitle: newTitle.trim() });
+        toast({ title: "Chat Renamed", description: `"${renameTarget.title}" has been renamed to "${newTitle.trim()}".` });
+        fetchSessions();
+    } catch (error) {
+        console.error("Failed to rename session", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not rename the chat session." });
+    } finally {
+        setRenameTarget(null);
+        setNewTitle("");
+    }
+  };
+
+  const handleDelete = async (sessionId: string) => {
+    if (!userId) return;
+    try {
+        await deleteChatSession({ sessionId, userId });
+        toast({ title: "Chat Deleted", description: "The chat session has been deleted." });
+        if (pathname === `/chat/${sessionId}`) {
+            router.push('/');
+        }
+        fetchSessions();
+    } catch (error) {
+        console.error("Failed to delete session", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not delete the chat session." });
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!userId) return;
+    try {
+        await deleteAllChatSessions({ userId });
+        toast({ title: "All Chats Deleted", description: "All of your chat sessions have been deleted." });
+        if (pathname.startsWith('/chat/')) {
+            router.push('/');
+        }
+        fetchSessions();
+    } catch (error) {
+        console.error("Failed to delete all sessions", error);
+        toast({ variant: "destructive", title: "Error", description: "Could not delete all chat sessions." });
     }
   }
 
@@ -180,7 +243,29 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
             </SidebarGroup>
             <SidebarSeparator />
             <SidebarGroup>
-              <SidebarGroupLabel className="flex items-center gap-2"><History className="h-4 w-4" />Recent Chats</SidebarGroupLabel>
+                <div className="flex items-center justify-between pl-2 pr-1">
+                    <SidebarGroupLabel className="flex items-center gap-2 !p-0"><History className="h-4 w-4" />Recent Chats</SidebarGroupLabel>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" disabled={chatSessions.length === 0}>
+                                <Delete className="h-4 w-4" />
+                                <span className="sr-only">Delete All Chats</span>
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    This action cannot be undone. This will permanently delete all your chat sessions.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={handleDeleteAll}>Continue</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                </div>
               {chatSessions.map(session => (
                  <SidebarMenuItem key={session.sessionId}>
                     <Link href={`/chat/${session.sessionId}`} className="w-full">
@@ -189,6 +274,42 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
                             <span className="truncate">{session.title}</span>
                         </SidebarMenuButton>
                     </Link>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                             <SidebarMenuAction showOnHover>
+                                <MoreVertical />
+                                <span className="sr-only">Chat Options</span>
+                            </SidebarMenuAction>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DialogTrigger asChild onSelect={(e) => e.preventDefault()}>
+                                <DropdownMenuItem onSelect={() => {setRenameTarget({id: session.sessionId, title: session.title}); setNewTitle(session.title)}}>
+                                    <Edit className="mr-2" />
+                                    Rename
+                                </DropdownMenuItem>
+                            </DialogTrigger>
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                        <Trash2 className="mr-2 text-red-500" />
+                                        <span className="text-red-500">Delete</span>
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                     <AlertDialogHeader>
+                                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            This will permanently delete the chat "{session.title}". This action cannot be undone.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDelete(session.sessionId)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </SidebarMenuItem>
               ))}
             </SidebarGroup>
@@ -269,6 +390,37 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
         <SidebarFooter>
         </SidebarFooter>
       </Sidebar>
+      <Dialog open={!!renameTarget} onOpenChange={(open) => !open && setRenameTarget(null)}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Rename Chat</DialogTitle>
+                <DialogDescription>
+                    Enter a new title for your chat session.
+                </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleRename}>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="title" className="text-right">
+                            Title
+                        </Label>
+                        <Input
+                            id="title"
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            className="col-span-3"
+                        />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit">Save changes</Button>
+                </DialogFooter>
+            </form>
+        </DialogContent>
+    </Dialog>
       <SidebarInset>
         <header className="p-4 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center gap-2">
@@ -295,6 +447,16 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
             </DropdownMenu>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => onVoiceResponsesChange(!voiceResponses)}
+                className={cn(voiceResponses && "text-blue-500 hover:text-blue-600")}
+                title="Toggle Voice Responses"
+            >
+                <Phone className="h-5 w-5" />
+                <span className="sr-only">Toggle Voice Responses</span>
+            </Button>
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">

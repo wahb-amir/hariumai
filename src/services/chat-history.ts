@@ -1,7 +1,7 @@
 
 'use server';
 
-import { MongoClient, ServerApiVersion } from 'mongodb';
+import { MongoClient, ServerApiVersion, ObjectId } from 'mongodb';
 
 const uri = process.env.MONGODB_URI;
 
@@ -44,10 +44,11 @@ export async function saveMessage(message: Message) {
 export async function getHistory(sessionId: string) {
     const database = await connectToDb();
     const collection = database.collection('history');
-    return await collection.find({ sessionId }).sort({ timestamp: 1 }).limit(20).toArray();
+    return await collection.find({ sessionId }).sort({ timestamp: 1 }).limit(50).toArray();
 }
 
 export type Session = {
+    _id?: ObjectId; // MongoDB ID
     sessionId: string;
     userId: string;
     title: string;
@@ -56,7 +57,7 @@ export type Session = {
     timestamp?: Date;
 }
 
-export async function createSession(session: Omit<Session, 'timestamp'>) {
+export async function createSession(session: Omit<Session, 'timestamp' | '_id'>) {
     const database = await connectToDb();
     const collection = database.collection('sessions');
     return await collection.insertOne({ ...session, timestamp: new Date() });
@@ -70,18 +71,53 @@ export async function getSession(sessionId: string): Promise<Session | null> {
         return null;
     }
     // Convert the MongoDB document to a plain object to avoid serialization issues.
-    return {
-        sessionId: sessionDoc.sessionId,
-        userId: sessionDoc.userId,
-        title: sessionDoc.title,
-        chatMode: sessionDoc.chatMode,
-        model: sessionDoc.model,
-        timestamp: sessionDoc.timestamp,
-    };
+    return JSON.parse(JSON.stringify(sessionDoc));
 }
 
 export async function getSessions(userId: string) {
     const database = await connectToDb();
     const collection = database.collection('sessions');
-    return await collection.find({ userId }).sort({ timestamp: -1 }).toArray();
+    const sessions = await collection.find({ userId }).sort({ timestamp: -1 }).toArray();
+    return JSON.parse(JSON.stringify(sessions));
+}
+
+export async function renameSession(sessionId: string, userId: string, newTitle: string) {
+    const database = await connectToDb();
+    const collection = database.collection('sessions');
+    // Ensure user can only rename their own sessions
+    return await collection.updateOne({ sessionId, userId }, { $set: { title: newTitle } });
+}
+
+export async function deleteSession(sessionId: string, userId: string) {
+    const database = await connectToDb();
+    const sessionsCollection = database.collection('sessions');
+    const historyCollection = database.collection('history');
+
+    // Ensure user can only delete their own sessions
+    const deleteSessionResult = await sessionsCollection.deleteOne({ sessionId, userId });
+
+    if (deleteSessionResult.deletedCount > 0) {
+        // Also delete the associated chat history
+        await historyCollection.deleteMany({ sessionId });
+    }
+
+    return deleteSessionResult;
+}
+
+export async function deleteAllSessions(userId: string) {
+    const database = await connectToDb();
+    const sessionsCollection = database.collection('sessions');
+    const historyCollection = database.collection('history');
+    
+    // Find all sessions for the user
+    const sessionsToDelete = await sessionsCollection.find({ userId }, { projection: { sessionId: 1 } }).toArray();
+    const sessionIdsToDelete = sessionsToDelete.map(s => s.sessionId);
+
+    // Delete all history for those sessions
+    if (sessionIdsToDelete.length > 0) {
+        await historyCollection.deleteMany({ sessionId: { $in: sessionIdsToDelete } });
+    }
+    
+    // Delete all sessions for the user
+    return await sessionsCollection.deleteMany({ userId });
 }

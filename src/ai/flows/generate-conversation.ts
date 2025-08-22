@@ -117,18 +117,16 @@ const converseWithAiFlow = ai.defineFlow(
     let currentSessionId = sessionId;
     let newSessionId: string | undefined;
 
-    const existingSession = await getSession(currentSessionId);
-    const isNewChat = !existingSession;
-    const sessionChatMode = isNewChat ? chatMode : existingSession.chatMode;
-
+    const isNewChat = !(await getSession(currentSessionId));
+    
     if (isNewChat) {
         const title = await generateChatTitle({ prompt });
-        await createSession({ sessionId: currentSessionId, userId, title, chatMode: sessionChatMode, model: model || '1.2ot' });
+        await createSession({ sessionId: currentSessionId, userId, title, chatMode, model: model || '1.2ot' });
         newSessionId = currentSessionId;
-        if (typeof window !== 'undefined') {
-            window.dispatchEvent(new Event('chat-updated'));
-        }
     }
+
+    const session = await getSession(currentSessionId);
+    const sessionChatMode = session!.chatMode;
 
     // If there's an attachment, save its data URI as part of the user's message content.
     // This isn't ideal for non-image files, but it's a simple way to log that something was attached.

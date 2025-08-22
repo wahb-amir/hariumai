@@ -256,9 +256,15 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
   
   const [currentSessionId, setCurrentSessionId] = useState(chatId || uuidv4());
+
+  useEffect(() => {
+    // This key is used to force a re-render of the panel when the chat ID changes.
+    // However, when starting a new chat, we need to generate a new key as well.
+    setCurrentSessionId(chatId || uuidv4());
+  }, [chatId]);
+
 
   useEffect(() => {
     if (chatId) {
@@ -377,18 +383,21 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
       };
 
       if (isNewChat && result.newSessionId) {
-        router.push(`/chat/${result.newSessionId}`);
+        // Update URL without a full reload for a smoother experience
+        window.history.pushState({}, '', `/chat/${result.newSessionId}`);
+        setCurrentSessionId(result.newSessionId); // Update internal state
+        window.dispatchEvent(new Event('chat-updated')); // Notify sidebar to refresh
+      }
+      
+      if (chatMode === 'search-web' && assistantMessageId) {
+        // Update the browser message with the final answer
+        setMessages((prev) => prev.map(msg => 
+            msg.id === assistantMessageId 
+            ? { ...msg, content: result.response } 
+            : msg
+        ));
       } else {
-          if (chatMode === 'search-web' && assistantMessageId) {
-            // Update the browser message with the final answer
-            setMessages((prev) => prev.map(msg => 
-                msg.id === assistantMessageId 
-                ? { ...msg, content: result.response } 
-                : msg
-            ));
-          } else {
-            setMessages((prev) => [...prev, assistantMessage]);
-          }
+        setMessages((prev) => [...prev, assistantMessage]);
       }
     } catch (error) {
       console.error('Error in conversation:', error);
@@ -397,6 +406,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
         title: 'Error',
         description: 'Failed to get a response from the AI.',
       });
+      // Rollback the user message on error
       setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
     } finally {
       setIsLoading(false);
@@ -556,7 +566,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
           {messages.map((message, index) => (
             <div key={message.id}>
                 {message.type === 'harium-browser' ? (
-                     <HariumBrowser query={messages.find(m => m.role === 'user')?.content || ''} answer={message.content} />
+                     <HariumBrowser query={messages.find(m => m.role === 'user' && m.id === userMessage.id)?.content || ''} answer={message.content.startsWith('data:image') ? undefined : message.content} />
                 ) : (
                     <div className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
                     {message.role === "assistant" && (

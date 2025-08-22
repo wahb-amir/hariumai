@@ -202,14 +202,6 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
                     </SidebarMenuButton>
                   </Link>
               </SidebarMenuItem>
-               <SidebarMenuItem>
-                 <Link href="/generation/video" className="w-full">
-                    <SidebarMenuButton isActive={pathname === '/generation/video'}>
-                      <Clapperboard />
-                      Video Generation
-                    </SidebarMenuButton>
-                  </Link>
-              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton disabled>
                   <Users />

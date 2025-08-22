@@ -85,6 +85,28 @@ const CodeBlock = ({ code }: { code: string }) => {
     );
 };
 
+const Typewriter = ({ text, onComplete }: { text: string, onComplete: () => void }) => {
+    const [displayedText, setDisplayedText] = useState("");
+    
+    useEffect(() => {
+        if (text) {
+            let i = 0;
+            const intervalId = setInterval(() => {
+                setDisplayedText(text.slice(0, i + 1));
+                i++;
+                if (i > text.length) {
+                    clearInterval(intervalId);
+                    onComplete();
+                }
+            }, 20); // Adjust speed as needed
+            return () => clearInterval(intervalId);
+        }
+    }, [text, onComplete]);
+
+    return <MarkdownRenderer text={displayedText} />;
+};
+
+
 const MarkdownRenderer = ({ text }: { text: string }) => {
     if (!text) {
         return null;
@@ -296,7 +318,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const stopAllProcesses = () => {
     if (audioRef.current) {
@@ -386,6 +408,8 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         };
         assistantMessageId = browserMessage.id;
         setMessages((prev) => [...prev, browserMessage]);
+    } else {
+        setMessages(prev => [...prev, { id: `asst-placeholder-${Date.now()}`, role: 'assistant', content: '', type: 'text' }]);
     }
 
     try {
@@ -419,8 +443,8 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
             : msg
         ));
       } else {
-        // Add the new assistant message
-        setMessages((prev) => [...prev, assistantMessage]);
+        // Replace the placeholder with the actual message
+         setMessages((prev) => prev.filter(m => !m.id.startsWith('asst-placeholder-')).concat(assistantMessage));
       }
 
       if (voiceResponses && result.responseType === 'text') {
@@ -434,10 +458,12 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         title: 'Error',
         description: 'Failed to get a response from the AI.',
       });
-      // Rollback the user message if there was an error
-      setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
+      // Rollback the user message and placeholder if there was an error
+      setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id && !msg.id.startsWith('asst-placeholder-')));
     } finally {
-      setIsLoading(false);
+      if(chatMode !== 'search-web') {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -624,7 +650,10 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
           {messages.map((message) => (
                 <div key={message.id}>
                     {message.type === 'harium-browser' ? (
-                        <HariumBrowser query={messages.find(m => m.role === 'user')?.content || ''} answer={!message.content.startsWith('data:image') ? message.content : undefined} />
+                        <HariumBrowser 
+                            query={messages.find(m => m.role === 'user' && m.id.startsWith('user-'))?.content || ''} 
+                            answer={!isLoading ? message.content : undefined} 
+                        />
                     ) : (
                         <div className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
                         {message.role === "assistant" && (
@@ -640,6 +669,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                             message.role === "user"
                                 ? "bg-primary text-primary-foreground"
                                 : "bg-card",
+                             message.id.startsWith('asst-placeholder-') && 'hidden'
                             )}
                         >
                             {message.type === 'image' ? (
@@ -667,7 +697,11 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                                         </div>
                                     )}
                                     <div className="text-sm leading-relaxed break-words">
-                                        <MarkdownRenderer text={message.content} />
+                                      {message.role === 'assistant' && !message.content.startsWith('data:image') ? (
+                                          <Typewriter text={message.content} onComplete={() => {}} />
+                                      ) : (
+                                          <MarkdownRenderer text={message.content} />
+                                      )}
                                     </div>
                                 </>
                             )}
@@ -718,7 +752,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                     )}
                 </div>
                 ))}
-           {isLoading && messages.at(-1)?.role === 'user' && (
+           {isLoading && (
                 <div className="flex items-start gap-4">
                     <Avatar className="h-8 w-8 border-none bg-transparent">
                         <AvatarFallback className="bg-transparent text-transparent">
@@ -806,5 +840,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     </div>
   );
 }
+
+    
 
     

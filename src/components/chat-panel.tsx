@@ -217,7 +217,7 @@ function HariumBrowser({ query, answer }: { query: string, answer?: string }) {
                     <HariumLogo className="h-8 w-8" />
                 </AvatarFallback>
             </Avatar>
-            <div className="w-full max-w-3xl rounded-lg bg-card border shadow-sm animate-in fade-in-50">
+            <div className="w-full max-w-2xl rounded-lg bg-card border shadow-sm animate-in fade-in-50">
                 <div className="h-9 flex items-center px-3 border-b">
                     <div className="flex items-center gap-1.5">
                         <div className="h-2.5 w-2.5 rounded-full bg-red-500"></div>
@@ -662,7 +662,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelected} />
         
       <ScrollArea className="flex-1 pr-4 -mr-4">
-        <div className="space-y-6 max-w-3xl mx-auto py-8">
+        <div className="space-y-6 max-w-2xl mx-auto py-8">
             {renderInitialScreen()}
           {messages.map((message, index) => {
             const userMessage = messages.find(m => m.role === 'user' && m.id === message.id);
@@ -792,7 +792,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         </div>
       </ScrollArea>
       <div className="border-t pt-4 bg-background">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-2xl mx-auto">
              {attachment && (
                 <div className="px-4 pb-2">
                     <div className="flex items-center gap-2 p-2 rounded-md bg-secondary text-sm">

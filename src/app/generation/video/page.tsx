@@ -1,3 +1,5 @@
+"use client";
+
 import { VideoGenerationPanel } from '@/components/video-generation-panel';
 import { HariumAiLayout } from '@/components/harium-ai-layout';
 import { useState } from 'react';

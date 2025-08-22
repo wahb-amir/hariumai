@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/sidebar";
 import {
   Users,
-  VolumeX,
+  Volume2,
   User as UserIcon,
   LogOut,
   Cog,
@@ -58,10 +58,11 @@ type HariumAiLayoutClientProps = {
     onModelChange: (model: string) => void;
     chatMode: ChatMode;
     onChatModeChange: (mode: ChatMode) => void;
+    voiceResponses: boolean;
+    onVoiceResponsesChange: (enabled: boolean) => void;
 }
 
-function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChatModeChange }: HariumAiLayoutClientProps) {
-  const [voiceResponses, setVoiceResponses] = React.useState(false);
+function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChatModeChange, voiceResponses, onVoiceResponsesChange }: HariumAiLayoutClientProps) {
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [chatSessions, setChatSessions] = React.useState<GetChatSessionsOutput>([]);
   const pathname = usePathname();
@@ -149,7 +150,7 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
   const mainContent = React.Children.map(children, child => {
     if (React.isValidElement(child)) {
       // @ts-ignore
-      return React.cloneElement(child, { model, chatMode, onChatModeChange });
+      return React.cloneElement(child, { model, chatMode, onChatModeChange, voiceResponses });
     }
     return child;
   });
@@ -215,12 +216,12 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
               <SidebarMenuItem>
                 <div className="flex items-center justify-between w-full p-2 text-sm">
                   <div className="flex items-center gap-2">
-                    <VolumeX className="h-4 w-4" />
+                    <Volume2 className="h-4 w-4" />
                     <span>Voice Responses</span>
                   </div>
                   <Switch
                     checked={voiceResponses}
-                    onCheckedChange={setVoiceResponses}
+                    onCheckedChange={onVoiceResponsesChange}
                   />
                 </div>
               </SidebarMenuItem>
@@ -338,9 +339,17 @@ type HariumAiLayoutProps = {
 };
 
 export function HariumAiLayout({ children, model, onModelChange, chatMode, onChatModeChange }: HariumAiLayoutProps) {
+    const [voiceResponses, setVoiceResponses] = React.useState(false);
     return (
         <AuthProvider>
-            <HariumAiLayoutClient model={model} onModelChange={onModelChange} chatMode={chatMode} onChatModeChange={onChatModeChange}>
+            <HariumAiLayoutClient 
+                model={model} 
+                onModelChange={onModelChange} 
+                chatMode={chatMode} 
+                onChatModeChange={onChatModeChange}
+                voiceResponses={voiceResponses}
+                onVoiceResponsesChange={setVoiceResponses}
+            >
                 {children}
             </HariumAiLayoutClient>
         </AuthProvider>

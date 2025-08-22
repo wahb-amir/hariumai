@@ -10,7 +10,12 @@ export default function Home() {
   const [chatMode, setChatMode] = useState<ChatMode>('chit-chat');
   
   return (
-    <HariumAiLayout model={model} onModelChange={setModel} chatMode={chatMode} onChatModeChange={setChatMode}>
+    <HariumAiLayout 
+      model={model} 
+      onModelChange={setModel} 
+      chatMode={chatMode} 
+      onChatModeChange={setChatMode}
+    >
         <ChatPanel model={model} chatMode={chatMode} onChatModeChange={setChatMode} />
     </HariumAiLayout>
   );

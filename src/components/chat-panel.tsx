@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit, Globe, File, Link2, X } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, MicOff, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit, Globe, File, Link2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
@@ -21,6 +21,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { WebSearchEnablingLoader } from "./web-search-loader";
 import { Skeleton } from "@/components/ui/skeleton";
+
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
 
 type Message = {
   id: string;
@@ -42,6 +49,7 @@ type ChatPanelProps = {
     model?: string;
     chatMode: ChatMode;
     onChatModeChange: (mode: ChatMode) => void;
+    voiceResponses: boolean;
 }
 
 const CodeBlock = ({ code }: { code: string }) => {
@@ -243,7 +251,7 @@ function HariumBrowser({ query, answer }: { query: string, answer?: string }) {
     );
 }
 
-export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPanelProps) {
+export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResponses }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -251,7 +259,9 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
   const [userId, setUserId] = useState<string | null>(null);
   const [preparingSearch, setPreparingSearch] = useState(false);
   const [attachment, setAttachment] = useState<Message['attachment'] | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
@@ -331,109 +341,6 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSendMessage = async (e: React.FormEvent, promptOverride?: string) => {
-    e.preventDefault();
-    const currentInput = promptOverride || input;
-    if (!currentInput.trim() || !userId) return;
-
-    const isNewChat = !chatId;
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: currentInput,
-      type: 'text',
-      attachment: attachment || undefined,
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-
-    if (!promptOverride) {
-      setInput('');
-      setAttachment(null);
-    }
-    setIsLoading(true);
-    
-    let assistantMessageId: string | null = null;
-    if (chatMode === 'search-web') {
-        const browserMessage: Message = {
-            id: `asst-${Date.now()}`,
-            role: 'assistant',
-            content: currentInput, // Pass query to browser animation
-            type: 'harium-browser',
-        };
-        assistantMessageId = browserMessage.id;
-        setMessages((prev) => [...prev, browserMessage]);
-    }
-
-    try {
-      const result = await converseWithAi({
-        prompt: currentInput,
-        sessionId: currentSessionId,
-        userId,
-        chatMode,
-        model,
-        attachmentDataUri: attachment?.dataUrl
-      });
-
-      const assistantMessage: Message = {
-        id: `asst-${Date.now()}`,
-        role: 'assistant',
-        content: result.response,
-        type: result.responseType,
-      };
-
-      if (isNewChat && result.newSessionId) {
-        // Update URL without a full reload for a smoother experience
-        window.history.pushState({}, '', `/chat/${result.newSessionId}`);
-        setCurrentSessionId(result.newSessionId); // Update internal state
-        window.dispatchEvent(new Event('chat-updated')); // Notify sidebar to refresh
-      }
-      
-      if (chatMode === 'search-web' && assistantMessageId) {
-        // Update the browser message with the final answer
-        setMessages((prev) => prev.map(msg => 
-            msg.id === assistantMessageId 
-            ? { ...msg, content: result.response } 
-            : msg
-        ));
-      } else {
-        setMessages((prev) => [...prev, assistantMessage]);
-      }
-    } catch (error) {
-      console.error('Error in conversation:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to get a response from the AI.',
-      });
-      // Rollback the user message on error
-      setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRegenerate = () => {
-    if (messages.length < 1 || isLoading) return;
-    const lastUserMessage = messages.filter(m => m.role === 'user').at(-1);
-    if(lastUserMessage) {
-        const lastMessage = messages.at(-1);
-        // If the last message was a browser result, remove both it and the user message
-        const messagesToRemove = (lastMessage?.type === 'harium-browser' || lastMessage?.role === 'assistant') ? 2 : 1;
-        const newMessages = messages.slice(0, messages.length - messagesToRemove);
-        setMessages(newMessages);
-        handleSendMessage(new Event('submit') as unknown as React.FormEvent, lastUserMessage.content);
-    }
-  }
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-        title: "Copied!",
-        description: "The response has been copied to your clipboard.",
-    });
-  }
-
   const handlePlayAudio = async (messageId: string, text: string) => {
     if (audioPlaying === messageId) {
       audioRef.current?.pause();
@@ -474,9 +381,120 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
     }
   };
 
+  const handleSendMessage = async (e: React.FormEvent, promptOverride?: string) => {
+    e.preventDefault();
+    const currentInput = promptOverride || input;
+    if (!currentInput.trim() || !userId) return;
+
+    const isNewChat = !chatId;
+    const userMessage: Message = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: currentInput,
+      type: 'text',
+      attachment: attachment || undefined,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+
+    if (!promptOverride) {
+      setInput('');
+      setAttachment(null);
+    }
+    setIsLoading(true);
+    
+    let assistantMessageId: string | null = null;
+    let browserMessage: Message | null = null;
+    if (chatMode === 'search-web') {
+        browserMessage = {
+            id: `asst-${Date.now()}`,
+            role: 'assistant',
+            content: currentInput, // Pass query to browser animation
+            type: 'harium-browser',
+        };
+        assistantMessageId = browserMessage.id;
+        setMessages((prev) => [...prev, browserMessage]);
+    }
+
+    try {
+      const result = await converseWithAi({
+        prompt: currentInput,
+        sessionId: currentSessionId,
+        userId,
+        chatMode,
+        model,
+        attachmentDataUri: attachment?.dataUrl
+      });
+
+      const assistantMessage: Message = {
+        id: `asst-${Date.now()}`,
+        role: 'assistant',
+        content: result.response,
+        type: result.responseType,
+      };
+
+      if (isNewChat && result.newSessionId) {
+        window.history.pushState({}, '', `/chat/${result.newSessionId}`);
+        setCurrentSessionId(result.newSessionId);
+        window.dispatchEvent(new Event('chat-updated'));
+      }
+      
+      if (chatMode === 'search-web' && assistantMessageId) {
+        setMessages((prev) => prev.map(msg => 
+            msg.id === assistantMessageId 
+            ? { ...browserMessage!, content: result.response } 
+            : msg
+        ));
+      } else {
+        setMessages((prev) => [...prev, assistantMessage]);
+      }
+
+      if (voiceResponses && result.responseType === 'text') {
+        await handlePlayAudio(assistantMessage.id, result.response);
+      }
+
+    } catch (error) {
+      console.error('Error in conversation:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to get a response from the AI.',
+      });
+      setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRegenerate = () => {
+    if (messages.length < 1 || isLoading) return;
+    const lastUserMessage = messages.filter(m => m.role === 'user').at(-1);
+    if(lastUserMessage) {
+        const assistantMessages = messages.filter(m => m.role === 'assistant');
+        const lastAssistantMessage = assistantMessages.at(-1);
+        
+        let messagesToRemove = 1; // Remove user message
+        if (lastAssistantMessage) {
+            messagesToRemove++; // Remove assistant message
+        }
+
+        const newMessages = messages.slice(0, messages.length - messagesToRemove);
+        setMessages(newMessages);
+        handleSendMessage(new Event('submit') as unknown as React.FormEvent, lastUserMessage.content);
+    }
+  }
+
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+        title: "Copied!",
+        description: "The response has been copied to your clipboard.",
+    });
+  }
+
   const handleAttachment = (type: 'gallery' | 'files') => {
     if (fileInputRef.current) {
-        fileInputRef.current.accept = type === 'gallery' ? 'image/*' : 'image/*'; // Allow only images for now
+        fileInputRef.current.accept = type === 'gallery' ? 'image/*' : 'image/*';
         fileInputRef.current.click();
     }
   }
@@ -511,11 +529,52 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
       }
       reader.readAsDataURL(file);
     }
-     // Reset file input
      if(e.target) {
         e.target.value = '';
     }
   }
+
+  const handleMicClick = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        toast({ variant: "destructive", title: "Error", description: "Speech recognition is not supported in your browser." });
+        return;
+      }
+      
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+
+      recognitionRef.current.onstart = () => {
+        setIsRecording(true);
+        toast({ title: "Listening...", description: "Start speaking now." });
+      };
+
+      recognitionRef.current.onend = () => {
+        setIsRecording(false);
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        toast({ variant: "destructive", title: "Speech Recognition Error", description: event.error });
+        setIsRecording(false);
+      };
+      
+      recognitionRef.current.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          handleSendMessage(new Event('submit') as unknown as React.FormEvent, transcript);
+        }
+      };
+
+      recognitionRef.current.start();
+    }
+  };
+
 
     const renderInitialScreen = () => {
         if (messages.length === 0 && !isLoading) {
@@ -563,107 +622,109 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-3xl mx-auto py-8">
             {renderInitialScreen()}
-          {messages.map((message, index) => (
-            <div key={message.id}>
-                {message.type === 'harium-browser' ? (
-                     <HariumBrowser query={messages.find(m => m.role === 'user' && m.id === userMessage.id)?.content || ''} answer={message.content.startsWith('data:image') ? undefined : message.content} />
-                ) : (
-                    <div className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
-                    {message.role === "assistant" && (
-                        <Avatar className="h-8 w-8 border-none bg-transparent">
-                        <AvatarFallback className="bg-transparent text-transparent">
-                            <HariumLogo className="h-8 w-8" />
-                        </AvatarFallback>
-                        </Avatar>
-                    )}
-                    <div
-                        className={cn(
-                        "max-w-[75%] rounded-lg p-3",
-                        message.role === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-card",
+          {messages.map((message, index) => {
+            const userMessage = messages.find(m => m.role === 'user' && m.id === message.id);
+            return (
+                <div key={message.id}>
+                    {message.type === 'harium-browser' ? (
+                        <HariumBrowser query={messages.find(m => m.role === 'user')?.content || ''} answer={!message.content.startsWith('data:image') ? message.content : undefined} />
+                    ) : (
+                        <div className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
+                        {message.role === "assistant" && (
+                            <Avatar className="h-8 w-8 border-none bg-transparent">
+                            <AvatarFallback className="bg-transparent text-transparent">
+                                <HariumLogo className="h-8 w-8" />
+                            </AvatarFallback>
+                            </Avatar>
                         )}
-                    >
-                        {message.type === 'image' ? (
-                        <Image
-                                src={message.content}
-                                alt="Generated image"
-                                width={512}
-                                height={512}
-                                className="rounded-lg"
-                                data-ai-hint="generated image"
-                            />
-                        ) : (
-                            <>
-                                {message.attachment && (
-                                    <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
-                                        {message.attachment.type.startsWith('image/') ? (
-                                            <Image src={message.attachment.dataUrl} alt={message.attachment.name} width={48} height={48} className="rounded-md" />
-                                        ) : (
-                                            <File className="h-6 w-6" />
-                                        )}
-                                        <div className="text-sm">
-                                            <p className="font-semibold">{message.attachment.name}</p>
-                                            <p className="text-xs">{Math.round(message.attachment.size / 1024)} KB</p>
+                        <div
+                            className={cn(
+                            "max-w-[75%] rounded-lg p-3",
+                            message.role === "user"
+                                ? "bg-primary text-primary-foreground"
+                                : "bg-card",
+                            )}
+                        >
+                            {message.type === 'image' ? (
+                            <Image
+                                    src={message.content}
+                                    alt="Generated image"
+                                    width={512}
+                                    height={512}
+                                    className="rounded-lg"
+                                    data-ai-hint="generated image"
+                                />
+                            ) : (
+                                <>
+                                    {message.attachment && (
+                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
+                                            {message.attachment.type.startsWith('image/') ? (
+                                                <Image src={message.attachment.dataUrl} alt={message.attachment.name} width={48} height={48} className="rounded-md" />
+                                            ) : (
+                                                <File className="h-6 w-6" />
+                                            )}
+                                            <div className="text-sm">
+                                                <p className="font-semibold">{message.attachment.name}</p>
+                                                <p className="text-xs">{Math.round(message.attachment.size / 1024)} KB</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                                <div className="text-sm leading-relaxed break-words">
-                                    {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
-                                        <Typewriter text={message.content} />
-                                    ) : (
-                                        <MarkdownRenderer text={message.content} />
                                     )}
+                                    <div className="text-sm leading-relaxed break-words">
+                                        {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
+                                            <Typewriter text={message.content} />
+                                        ) : (
+                                            <MarkdownRenderer text={message.content} />
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                            
+                            {message.role === 'assistant' && !isLoading && index === messages.length - 1 && message.type === 'text' && (
+                                <div className="mt-2 flex items-center gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        onClick={() => handlePlayAudio(message.id, message.content)}
+                                        disabled={audioPlaying !== null && audioPlaying !== message.id}
+                                        title="Play audio"
+                                    >
+                                        {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
+                                        <span className="sr-only">Play audio</span>
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        onClick={() => handleCopy(message.content)}
+                                        title="Copy response"
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                        <span className="sr-only">Copy response</span>
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                        onClick={handleRegenerate}
+                                        disabled={isLoading}
+                                        title="Regenerate response"
+                                    >
+                                        <RefreshCw className="h-4 w-4" />
+                                        <span className="sr-only">Regenerate response</span>
+                                    </Button>
                                 </div>
-                            </>
+                            )}
+                        </div>
+                        {message.role === "user" && (
+                            <Avatar className="h-8 w-8 border bg-background">
+                                <AvatarFallback className="bg-primary text-primary-foreground"><User className="h-5 w-5" /></AvatarFallback>
+                            </Avatar>
                         )}
-                        
-                        {message.role === 'assistant' && !isLoading && index === messages.length - 1 && message.type === 'text' && (
-                            <div className="mt-2 flex items-center gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                    onClick={() => handlePlayAudio(message.id, message.content)}
-                                    disabled={audioPlaying !== null && audioPlaying !== message.id}
-                                    title="Play audio"
-                                >
-                                    {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
-                                    <span className="sr-only">Play audio</span>
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                    onClick={() => handleCopy(message.content)}
-                                    title="Copy response"
-                                >
-                                    <Copy className="h-4 w-4" />
-                                    <span className="sr-only">Copy response</span>
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                    onClick={handleRegenerate}
-                                    disabled={isLoading}
-                                    title="Regenerate response"
-                                >
-                                    <RefreshCw className="h-4 w-4" />
-                                    <span className="sr-only">Regenerate response</span>
-                                </Button>
-                            </div>
-                        )}
-                    </div>
-                    {message.role === "user" && (
-                        <Avatar className="h-8 w-8 border bg-background">
-                            <AvatarFallback className="bg-primary text-primary-foreground"><User className="h-5 w-5" /></AvatarFallback>
-                        </Avatar>
+                        </div>
                     )}
-                    </div>
-                )}
-            </div>
-          ))}
+                </div>
+                )})}
            {isLoading && messages.length > 0 && messages.at(-1)?.type !== 'harium-browser' && (
             <>
                 <div className="flex items-start gap-4">
@@ -736,7 +797,9 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange }: ChatPan
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled={isLoading}><Mic className="h-4 w-4" /></Button>
+                    <Button type="button" variant="ghost" size="icon" className={cn("h-8 w-8 text-muted-foreground", isRecording && 'text-red-500 animate-pulse')} disabled={isLoading} onClick={handleMicClick}>
+                       {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                    </Button>
                     <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isLoading || !input.trim()}>
                         {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                         <span className="sr-only">Send</span>

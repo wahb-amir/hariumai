@@ -36,7 +36,12 @@ export default function ChatPage() {
   }
 
   return (
-    <HariumAiLayout model={model} onModelChange={setModel} chatMode={chatMode} onChatModeChange={setChatMode}>
+    <HariumAiLayout 
+        model={model} 
+        onModelChange={setModel} 
+        chatMode={chatMode} 
+        onChatModeChange={setChatMode}
+    >
         <ChatPanel key={id} chatId={id} model={model} chatMode={chatMode} onChatModeChange={setChatMode} />
     </HariumAiLayout>
   );

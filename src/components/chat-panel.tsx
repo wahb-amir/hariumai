@@ -85,27 +85,35 @@ const CodeBlock = ({ code }: { code: string }) => {
     );
 };
 
-const Typewriter = ({ text, onComplete }: { text: string, onComplete: () => void }) => {
-    const [displayedText, setDisplayedText] = useState("");
-    
-    useEffect(() => {
-        if (text) {
-            let i = 0;
-            const intervalId = setInterval(() => {
-                setDisplayedText(text.slice(0, i + 1));
-                i++;
-                if (i > text.length) {
-                    clearInterval(intervalId);
-                    onComplete();
-                }
-            }, 20); // Adjust speed as needed
-            return () => clearInterval(intervalId);
+const Typewriter = ({ text, onComplete }: { text: string; onComplete?: () => void }) => {
+  const [displayedText, setDisplayedText] = useState("");
+  const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    setDisplayedText("");
+    setIsComplete(false);
+    let i = 0;
+    const intervalId = setInterval(() => {
+      setDisplayedText(text.slice(0, i));
+      i++;
+      if (i > text.length) {
+        clearInterval(intervalId);
+        setIsComplete(true);
+        if (onComplete) {
+          onComplete();
         }
-    }, [text, onComplete]);
+      }
+    }, 20); // Adjust speed as needed
+    return () => clearInterval(intervalId);
+  }, [text, onComplete]);
 
-    return <MarkdownRenderer text={displayedText} />;
+  return (
+    <>
+      <MarkdownRenderer text={displayedText} />
+      {!isComplete && <span className="animate-pulse">●</span>}
+    </>
+  );
 };
-
 
 const MarkdownRenderer = ({ text }: { text: string }) => {
     if (!text) {
@@ -378,7 +386,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     e.preventDefault();
     const currentInput = promptOverride || input;
     if (!currentInput.trim() || !userId) return;
-
+  
     const isNewChat = !chatId;
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -387,31 +395,17 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       type: 'text',
       attachment: attachment || undefined,
     };
-    
-    // Optimistically update the UI
-    setMessages((prev) => [...prev, userMessage]);
-
+  
+    // Add user message and a placeholder for the assistant's response
+    const assistantPlaceholderId = `asst-placeholder-${Date.now()}`;
+    setMessages((prev) => [...prev, userMessage, { id: assistantPlaceholderId, role: 'assistant', content: '', type: 'text' }]);
+  
     if (!promptOverride) {
       setInput('');
       setAttachment(null);
     }
     setIsLoading(true);
-    
-    let assistantMessageId: string | null = null;
-    let browserMessage: Message | null = null;
-    if (chatMode === 'search-web') {
-        browserMessage = {
-            id: `asst-browser-${Date.now()}`,
-            role: 'assistant',
-            content: currentInput, // Pass query to browser animation
-            type: 'harium-browser',
-        };
-        assistantMessageId = browserMessage.id;
-        setMessages((prev) => [...prev, browserMessage]);
-    } else {
-        setMessages(prev => [...prev, { id: `asst-placeholder-${Date.now()}`, role: 'assistant', content: '', type: 'text' }]);
-    }
-
+  
     try {
       const result = await converseWithAi({
         prompt: currentInput,
@@ -421,49 +415,38 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         model,
         attachmentDataUri: attachment?.dataUrl
       });
-
+  
       const assistantMessage: Message = {
         id: `asst-${Date.now()}`,
         role: 'assistant',
         content: result.response,
         type: result.responseType,
       };
-
+  
       if (isNewChat && result.newSessionId) {
         window.history.pushState({}, '', `/chat/${result.newSessionId}`);
         setCurrentSessionId(result.newSessionId);
         window.dispatchEvent(new Event('chat-updated'));
       }
       
-      if (chatMode === 'search-web' && assistantMessageId && browserMessage) {
-        // Update the browser message with the final answer
-        setMessages((prev) => prev.map(msg => 
-            msg.id === assistantMessageId 
-            ? { ...msg, content: result.response } 
-            : msg
-        ));
-      } else {
-        // Replace the placeholder with the actual message
-         setMessages((prev) => prev.filter(m => !m.id.startsWith('asst-placeholder-')).concat(assistantMessage));
-      }
-
-      if (voiceResponses && result.responseType === 'text') {
+      // Replace the placeholder with the actual message
+      setMessages((prev) => prev.map(msg => msg.id === assistantPlaceholderId ? assistantMessage : msg));
+      
+      if (isCallActive && voiceResponses && result.responseType === 'text') {
         await handlePlayAudio(assistantMessage.id, result.response);
       }
-
+  
     } catch (error) {
       console.error('Error in conversation:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to get a response from the AI.',
-      });
-      // Rollback the user message and placeholder if there was an error
-      setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id && !msg.id.startsWith('asst-placeholder-')));
+      const errorMessage: Message = {
+        id: `asst-err-${Date.now()}`,
+        role: 'assistant',
+        content: 'Sorry, I ran into an error. Please try again.',
+        type: 'text',
+      };
+      setMessages((prev) => prev.map(msg => msg.id === assistantPlaceholderId ? errorMessage : msg));
     } finally {
-      if(chatMode !== 'search-web') {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   };
 
@@ -648,109 +631,110 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         <div className="space-y-6 max-w-2xl mx-auto py-8">
             {renderInitialScreen()}
           {messages.map((message) => (
-                <div key={message.id}>
-                    {message.type === 'harium-browser' ? (
-                        <HariumBrowser 
-                            query={messages.find(m => m.role === 'user' && m.id.startsWith('user-'))?.content || ''} 
-                            answer={!isLoading ? message.content : undefined} 
-                        />
-                    ) : (
-                        <div className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
-                        {message.role === "assistant" && (
-                            <Avatar className="h-8 w-8 border-none bg-transparent">
-                            <AvatarFallback className="bg-transparent text-transparent">
-                                <HariumLogo className="h-8 w-8" />
-                            </AvatarFallback>
-                            </Avatar>
-                        )}
-                        <div
-                            className={cn(
-                            "max-w-[75%] rounded-lg p-3",
-                            message.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-card",
-                             message.id.startsWith('asst-placeholder-') && 'hidden'
+                message.id.startsWith('asst-placeholder-') ? null : (
+                    <div key={message.id}>
+                        {message.type === 'harium-browser' ? (
+                            <HariumBrowser 
+                                query={messages.find(m => m.role === 'user' && m.id.startsWith('user-'))?.content || ''} 
+                                answer={!isLoading ? message.content : undefined} 
+                            />
+                        ) : (
+                            <div className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
+                            {message.role === "assistant" && (
+                                <Avatar className="h-8 w-8 border-none bg-transparent">
+                                <AvatarFallback className="bg-transparent text-transparent">
+                                    <HariumLogo className="h-8 w-8" />
+                                </AvatarFallback>
+                                </Avatar>
                             )}
-                        >
-                            {message.type === 'image' ? (
-                            <Image
-                                    src={message.content}
-                                    alt="Generated image"
-                                    width={512}
-                                    height={512}
-                                    className="rounded-lg"
-                                    data-ai-hint="generated image"
-                                />
-                            ) : (
-                                <>
-                                    {message.attachment && (
-                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
-                                            {message.attachment.type.startsWith('image/') ? (
-                                                <Image src={message.attachment.dataUrl} alt={message.attachment.name} width={48} height={48} className="rounded-md" />
-                                            ) : (
-                                                <File className="h-6 w-6" />
-                                            )}
-                                            <div className="text-sm">
-                                                <p className="font-semibold">{message.attachment.name}</p>
-                                                <p className="text-xs">{Math.round(message.attachment.size / 1024)} KB</p>
+                            <div
+                                className={cn(
+                                "max-w-[75%] rounded-lg p-3",
+                                message.role === "user"
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-card"
+                                )}
+                            >
+                                {message.type === 'image' ? (
+                                <Image
+                                        src={message.content}
+                                        alt="Generated image"
+                                        width={512}
+                                        height={512}
+                                        className="rounded-lg"
+                                        data-ai-hint="generated image"
+                                    />
+                                ) : (
+                                    <>
+                                        {message.attachment && (
+                                            <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
+                                                {message.attachment.type.startsWith('image/') ? (
+                                                    <Image src={message.attachment.dataUrl} alt={message.attachment.name} width={48} height={48} className="rounded-md" />
+                                                ) : (
+                                                    <File className="h-6 w-6" />
+                                                )}
+                                                <div className="text-sm">
+                                                    <p className="font-semibold">{message.attachment.name}</p>
+                                                    <p className="text-xs">{Math.round(message.attachment.size / 1024)} KB</p>
+                                                </div>
                                             </div>
+                                        )}
+                                        <div className="text-sm leading-relaxed break-words">
+                                          {message.role === 'assistant' && !message.content.startsWith('data:image') ? (
+                                              <Typewriter text={message.content} />
+                                          ) : (
+                                              <MarkdownRenderer text={message.content} />
+                                          )}
                                         </div>
-                                    )}
-                                    <div className="text-sm leading-relaxed break-words">
-                                      {message.role === 'assistant' && !message.content.startsWith('data:image') ? (
-                                          <Typewriter text={message.content} onComplete={() => {}} />
-                                      ) : (
-                                          <MarkdownRenderer text={message.content} />
-                                      )}
+                                    </>
+                                )}
+                                
+                                {message.role === 'assistant' && !isLoading && (
+                                    <div className="mt-2 flex items-center gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                            onClick={() => handlePlayAudio(message.id, message.content)}
+                                            disabled={audioPlaying !== null && audioPlaying !== message.id}
+                                            title="Play audio"
+                                        >
+                                            {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
+                                            <span className="sr-only">Play audio</span>
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                            onClick={() => handleCopy(message.content)}
+                                            title="Copy response"
+                                        >
+                                            <Copy className="h-4 w-4" />
+                                            <span className="sr-only">Copy response</span>
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                            onClick={handleRegenerate}
+                                            disabled={isLoading}
+                                            title="Regenerate response"
+                                        >
+                                            <RefreshCw className="h-4 w-4" />
+                                            <span className="sr-only">Regenerate response</span>
+                                        </Button>
                                     </div>
-                                </>
+                                )}
+                            </div>
+                            {message.role === "user" && (
+                                <Avatar className="h-8 w-8 border bg-background">
+                                    <AvatarFallback className="bg-primary text-primary-foreground"><User className="h-5 w-5" /></AvatarFallback>
+                                </Avatar>
                             )}
-                            
-                            {message.role === 'assistant' && !isLoading && (
-                                <div className="mt-2 flex items-center gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                        onClick={() => handlePlayAudio(message.id, message.content)}
-                                        disabled={audioPlaying !== null && audioPlaying !== message.id}
-                                        title="Play audio"
-                                    >
-                                        {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
-                                        <span className="sr-only">Play audio</span>
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                        onClick={() => handleCopy(message.content)}
-                                        title="Copy response"
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                        <span className="sr-only">Copy response</span>
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                        onClick={handleRegenerate}
-                                        disabled={isLoading}
-                                        title="Regenerate response"
-                                    >
-                                        <RefreshCw className="h-4 w-4" />
-                                        <span className="sr-only">Regenerate response</span>
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                        {message.role === "user" && (
-                            <Avatar className="h-8 w-8 border bg-background">
-                                <AvatarFallback className="bg-primary text-primary-foreground"><User className="h-5 w-5" /></AvatarFallback>
-                            </Avatar>
+                            </div>
                         )}
-                        </div>
-                    )}
-                </div>
+                    </div>
+                )
                 ))}
            {isLoading && (
                 <div className="flex items-start gap-4">
@@ -840,7 +824,5 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     </div>
   );
 }
-
-    
 
     

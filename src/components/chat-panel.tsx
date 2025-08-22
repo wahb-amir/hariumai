@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, MicOff, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit, Globe, File, Link2, X } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, MicOff, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit, Globe, File, Link2, X, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
@@ -340,6 +340,16 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  const stopAllProcesses = () => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setAudioPlaying(null);
+    }
+    // In a real streaming scenario, you'd abort the fetch controller here.
+    // For now, we just stop visual/audio feedback.
+    setIsLoading(false);
+  };
 
   const handlePlayAudio = async (messageId: string, text: string) => {
     if (audioPlaying === messageId) {
@@ -738,6 +748,10 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                         <span className="text-sm text-muted-foreground">
                             {chatMode === 'deep-research' ? 'Performing deep research...' : 'HariumAI is thinking...'}
                         </span>
+                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={stopAllProcesses}>
+                            <Square className="h-4 w-4" />
+                            <span className="sr-only">Stop</span>
+                        </Button>
                     </div>
                 </div>
             </>
@@ -765,7 +779,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Send a message..."
-                    className="flex-1 resize-none rounded-full bg-secondary border-none pl-4 pr-24 py-3 min-h-0 h-12"
+                    className="flex-1 resize-none rounded-full bg-secondary border-none pl-4 pr-24 sm:pr-32 py-3 min-h-0 h-12"
                     rows={1}
                     onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -778,7 +792,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" disabled={isLoading}>
+                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hidden sm:inline-flex" disabled={isLoading}>
                                 <Paperclip className="h-4 w-4" />
                             </Button>
                         </DropdownMenuTrigger>
@@ -811,3 +825,5 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     </div>
   );
 }
+
+    

@@ -132,52 +132,6 @@ const MarkdownRenderer = ({ text }: { text: string }) => {
     return <>{parts.map(renderChunk)}</>;
 };
 
-function Typewriter({ text }: { text: string }) {
-    const [displayedText, setDisplayedText] = useState("");
-    const [showCursor, setShowCursor] = useState(true);
-    const [isFinished, setIsFinished] = useState(false);
-  
-    useEffect(() => {
-      setDisplayedText("");
-      setIsFinished(false);
-      let i = 0;
-      const wordCount = text.split(' ').length;
-      const typingSpeed = wordCount > 50 ? 10 : 20;
-  
-      const intervalId = setInterval(() => {
-        if (i < text.length) {
-          setDisplayedText((prev) => prev + text.charAt(i));
-          i++;
-        } else {
-          clearInterval(intervalId);
-          setIsFinished(true);
-        }
-      }, typingSpeed);
-  
-      return () => clearInterval(intervalId);
-    }, [text]);
-  
-    useEffect(() => {
-      if (isFinished) {
-        const cursorInterval = setInterval(() => {
-          setShowCursor((prev) => !prev);
-        }, 500);
-        return () => clearInterval(cursorInterval);
-      }
-    }, [isFinished]);
-  
-    if (isFinished) {
-        return <div className="text-sm leading-relaxed break-words"><MarkdownRenderer text={text} /></div>;
-    }
-  
-    return (
-      <p className="text-sm leading-relaxed break-words">
-        {displayedText}
-        <span className={`text-xl ml-1 ${!isFinished || showCursor ? 'opacity-100' : 'opacity-0'} ${!isFinished ? '' : 'animate-pulse'}`}>●</span>
-      </p>
-    );
-}
-
 function HariumBrowser({ query, answer }: { query: string, answer?: string }) {
     const [displayedQuery, setDisplayedQuery] = useState("");
     const [status, setStatus] = useState<"typing" | "searching" | "finding" | "complete">("typing");
@@ -411,7 +365,8 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       type: 'text',
       attachment: attachment || undefined,
     };
-
+    
+    // Optimistically update the UI
     setMessages((prev) => [...prev, userMessage]);
 
     if (!promptOverride) {
@@ -424,7 +379,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     let browserMessage: Message | null = null;
     if (chatMode === 'search-web') {
         browserMessage = {
-            id: `asst-${Date.now()}`,
+            id: `asst-browser-${Date.now()}`,
             role: 'assistant',
             content: currentInput, // Pass query to browser animation
             type: 'harium-browser',
@@ -457,12 +412,14 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       }
       
       if (chatMode === 'search-web' && assistantMessageId && browserMessage) {
+        // Update the browser message with the final answer
         setMessages((prev) => prev.map(msg => 
             msg.id === assistantMessageId 
-            ? { ...browserMessage, content: result.response } 
+            ? { ...msg, content: result.response } 
             : msg
         ));
       } else {
+        // Add the new assistant message
         setMessages((prev) => [...prev, assistantMessage]);
       }
 
@@ -477,6 +434,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         title: 'Error',
         description: 'Failed to get a response from the AI.',
       });
+      // Rollback the user message if there was an error
       setMessages((prev) => prev.filter((msg) => msg.id !== userMessage.id));
     } finally {
       setIsLoading(false);
@@ -490,13 +448,12 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         const assistantMessages = messages.filter(m => m.role === 'assistant');
         const lastAssistantMessage = assistantMessages.at(-1);
         
-        let messagesToRemove = 1; // Remove user message
+        let messagesToKeep = messages;
         if (lastAssistantMessage) {
-            messagesToRemove++; // Remove assistant message
+            messagesToKeep = messages.filter(m => m.id !== lastAssistantMessage.id);
         }
-
-        const newMessages = messages.slice(0, messages.length - messagesToRemove);
-        setMessages(newMessages);
+        
+        setMessages(messagesToKeep);
         handleSendMessage(new Event('submit') as unknown as React.FormEvent, lastUserMessage.content);
     }
   }
@@ -664,9 +621,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-2xl mx-auto py-8">
             {renderInitialScreen()}
-          {messages.map((message, index) => {
-            const userMessage = messages.find(m => m.role === 'user' && m.id === message.id);
-            return (
+          {messages.map((message) => (
                 <div key={message.id}>
                     {message.type === 'harium-browser' ? (
                         <HariumBrowser query={messages.find(m => m.role === 'user')?.content || ''} answer={!message.content.startsWith('data:image') ? message.content : undefined} />
@@ -712,16 +667,12 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                                         </div>
                                     )}
                                     <div className="text-sm leading-relaxed break-words">
-                                        {message.role === 'assistant' && !isLoading && index === messages.length - 1 ? (
-                                            <Typewriter text={message.content} />
-                                        ) : (
-                                            <MarkdownRenderer text={message.content} />
-                                        )}
+                                        <MarkdownRenderer text={message.content} />
                                     </div>
                                 </>
                             )}
                             
-                            {message.role === 'assistant' && !isLoading && index === messages.length - 1 && message.type === 'text' && (
+                            {message.role === 'assistant' && !isLoading && (
                                 <div className="mt-2 flex items-center gap-2">
                                     <Button
                                         variant="ghost"
@@ -766,9 +717,8 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                         </div>
                     )}
                 </div>
-                )})}
-           {isLoading && messages.length > 0 && messages.at(-1)?.type !== 'harium-browser' && (
-            <>
+                ))}
+           {isLoading && messages.at(-1)?.role === 'user' && (
                 <div className="flex items-start gap-4">
                     <Avatar className="h-8 w-8 border-none bg-transparent">
                         <AvatarFallback className="bg-transparent text-transparent">
@@ -786,7 +736,6 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                         </Button>
                     </div>
                 </div>
-            </>
           )}
           <div ref={messagesEndRef} />
         </div>

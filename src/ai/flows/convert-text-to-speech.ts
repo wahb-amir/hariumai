@@ -62,7 +62,7 @@ const convertTextToSpeechFlow = ai.defineFlow(
 async function toWav(
   pcmData: Buffer,
   channels = 1,
-  rate = 16000, // Reduced from 24000 to 16000 for faster processing
+  rate = 24000,
   sampleWidth = 2
 ): Promise<string> {
   return new Promise((resolve, reject) => {

@@ -50,6 +50,7 @@ type ChatPanelProps = {
     model?: string;
     chatMode: ChatMode;
     onChatModeChange: (mode: ChatMode) => void;
+    isCallActive: boolean;
     voiceResponses: boolean;
     isRecording: boolean;
     onToggleRecording: () => void;
@@ -254,7 +255,7 @@ function HariumBrowser({ query, answer }: { query: string, answer?: string }) {
     );
 }
 
-export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResponses, isRecording, onToggleRecording }: ChatPanelProps) {
+export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResponses, isRecording, onToggleRecording, isCallActive }: ChatPanelProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -365,13 +366,17 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     }
     setAudioPlaying(messageId);
     try {
-      const { media } = await convertTextToSpeech(text);
+      const selectedVoice = localStorage.getItem('selected_voice') || 'Algenib';
+      const { media } = await convertTextToSpeech({ text, voice: selectedVoice });
       const audio = new Audio(media);
       audioRef.current = audio;
       audio.play();
       audio.onended = () => {
         setAudioPlaying(null);
         audioRef.current = null;
+        if (isCallActive) {
+            handleMicClick(); // Re-enable listening after AI finishes speaking
+        }
       };
       audio.onerror = () => {
         toast({
@@ -549,46 +554,68 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
   const handleMicClick = () => {
     if (isRecording) {
       recognitionRef.current?.stop();
-    } else {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        toast({ variant: "destructive", title: "Error", description: "Speech recognition is not supported in your browser." });
-        return;
-      }
-      
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onstart = () => {
-        onToggleRecording(); // Sync state with layout
-        toast({ title: "Listening...", description: "Start speaking now." });
-      };
-
-      recognitionRef.current.onend = () => {
-        if(isRecording) {
-           onToggleRecording(); // Sync state with layout
-        }
-      };
-
-      recognitionRef.current.onerror = (event: any) => {
-        toast({ variant: "destructive", title: "Speech Recognition Error", description: event.error });
-         if(isRecording) {
-           onToggleRecording(); // Sync state with layout
-        }
-      };
-      
-      recognitionRef.current.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript) {
-          handleSendMessage(new Event('submit') as unknown as React.FormEvent, transcript);
-        }
-      };
-
-      recognitionRef.current.start();
+      onToggleRecording();
+      return;
+    } 
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast({ variant: "destructive", title: "Error", description: "Speech recognition is not supported in your browser." });
+      return;
     }
+    
+    if (!recognitionRef.current) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = !isCallActive;
+        recognitionRef.current.interimResults = false;
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onstart = () => {
+            onToggleRecording(); 
+        };
+
+        recognitionRef.current.onend = () => {
+            if(isRecording) { // Only toggle if it was recording, prevents flicker on manual stop
+              onToggleRecording();
+            }
+        };
+
+        recognitionRef.current.onerror = (event: any) => {
+            toast({ variant: "destructive", title: "Speech Recognition Error", description: event.error });
+            if(isRecording) {
+              onToggleRecording();
+            }
+        };
+        
+        recognitionRef.current.onresult = (event: any) => {
+            const transcript = Array.from(event.results)
+                .map((result: any) => result[0])
+                .map((result) => result.transcript)
+                .join('');
+            
+            if (transcript) {
+              if (isCallActive) {
+                 handleSendMessage(new Event('submit') as unknown as React.FormEvent, transcript);
+              } else {
+                 setInput(prev => prev + transcript);
+              }
+            }
+        };
+    }
+    
+    recognitionRef.current.start();
   };
+
+  // Effect to handle live call recording logic
+  useEffect(() => {
+    if (isCallActive && !isRecording && audioPlaying === null) {
+      handleMicClick(); // Start listening if in a call and not already recording/speaking
+    }
+    if (!isCallActive && isRecording) {
+        recognitionRef.current?.stop(); // Stop listening if call ends
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCallActive, audioPlaying]);
 
 
     const renderInitialScreen = () => {

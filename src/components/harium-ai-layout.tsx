@@ -43,6 +43,7 @@ import {
   Edit,
   Delete,
   Clapperboard,
+  Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +66,7 @@ import { Label } from "./ui/label";
 import { type ChatMode } from "./chat-panel";
 import { cn } from "@/lib/utils";
 import { CallPanel } from "./call-panel";
+import { RadioGroup, RadioGroupItem } from "./ui/radio-group";
 
 type HariumAiLayoutClientProps = {
     children?: React.ReactNode;
@@ -76,20 +78,43 @@ type HariumAiLayoutClientProps = {
     onVoiceResponsesChange: (enabled: boolean) => void;
     isRecording: boolean;
     onToggleRecording: () => void;
+    isCallActive: boolean;
+    onToggleCall: () => void;
 }
 
-function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChatModeChange, voiceResponses, onVoiceResponsesChange, isRecording, onToggleRecording }: HariumAiLayoutClientProps) {
+const voices = [
+    { id: 'Algenib', name: 'Algenib (Female)' },
+    { id: 'Achernar', name: 'Achernar (Male)' },
+    { id: 'Polaris', name: 'Polaris (Female)' },
+    { id: 'Antares', name: 'Antares (Male)' },
+    { id: 'Spica', name: 'Spica (Female)' },
+];
+
+
+function HariumAiLayoutClient({ 
+    children, model, onModelChange, chatMode, onChatModeChange, 
+    voiceResponses, onVoiceResponsesChange, isRecording, onToggleRecording,
+    isCallActive, onToggleCall
+}: HariumAiLayoutClientProps) {
   const [isDarkMode, setIsDarkMode] = React.useState(false);
   const [chatSessions, setChatSessions] = React.useState<GetChatSessionsOutput>([]);
   const [renameTarget, setRenameTarget] = React.useState<{ id: string; title: string } | null>(null);
   const [newTitle, setNewTitle] = React.useState("");
-  const [isCallActive, setIsCallActive] = React.useState(false);
+  const [isVoiceSelectionOpen, setIsVoiceSelectionOpen] = React.useState(false);
+  const [selectedVoice, setSelectedVoice] = React.useState('Algenib');
 
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [userId, setUserId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const savedVoice = localStorage.getItem('selected_voice');
+    if (savedVoice) {
+        setSelectedVoice(savedVoice);
+    }
+  }, []);
 
   React.useEffect(() => {
     if (!authLoading) {
@@ -138,6 +163,7 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
                 description: 'You have been successfully signed out.'
             });
             localStorage.removeItem('anonymous_user_id');
+            localStorage.removeItem('selected_voice');
             setChatSessions([]);
             router.push('/login');
         }
@@ -216,18 +242,29 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
   }
 
   const handleToggleCall = () => {
-    const newCallState = !isCallActive;
-    setIsCallActive(newCallState);
-    onVoiceResponsesChange(newCallState); // A call starting should enable voice
-    if (!newCallState && isRecording) {
-      onToggleRecording(); // Stop recording if call ends
-    }
+     if (isCallActive) {
+        onToggleCall(); // Directly turn off if already active
+     } else {
+        const hasSelectedVoice = !!localStorage.getItem('selected_voice');
+        if (hasSelectedVoice) {
+            onToggleCall();
+        } else {
+            setIsVoiceSelectionOpen(true);
+        }
+     }
+  }
+
+  const handleSaveVoiceSelection = () => {
+    localStorage.setItem('selected_voice', selectedVoice);
+    toast({ title: 'Voice Saved', description: 'Your preferred voice has been set.' });
+    setIsVoiceSelectionOpen(false);
+    onToggleCall();
   }
 
   const mainContent = React.Children.map(children, child => {
     if (React.isValidElement(child)) {
       // @ts-ignore
-      return React.cloneElement(child, { model, chatMode, onChatModeChange, voiceResponses, onToggleRecording, isRecording });
+      return React.cloneElement(child, { model, chatMode, onChatModeChange, voiceResponses, onToggleRecording, isRecording, isCallActive });
     }
     return child;
   });
@@ -357,6 +394,7 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
                   <Switch
                     checked={voiceResponses}
                     onCheckedChange={onVoiceResponsesChange}
+                    disabled={isCallActive}
                   />
                 </div>
               </SidebarMenuItem>
@@ -435,6 +473,30 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
             </form>
         </DialogContent>
     </Dialog>
+     <Dialog open={isVoiceSelectionOpen} onOpenChange={setIsVoiceSelectionOpen}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Select a Voice</DialogTitle>
+                <DialogDescription>
+                    Choose the voice you'd like Harium AI to use for conversations.
+                </DialogDescription>
+            </DialogHeader>
+            <RadioGroup defaultValue={selectedVoice} onValueChange={setSelectedVoice} className="grid gap-4 py-4">
+                {voices.map((voice) => (
+                    <div key={voice.id} className="flex items-center space-x-2">
+                        <RadioGroupItem value={voice.id} id={voice.id} />
+                        <Label htmlFor={voice.id}>{voice.name}</Label>
+                    </div>
+                ))}
+            </RadioGroup>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button type="button" variant="secondary">Cancel</Button>
+                </DialogClose>
+                <Button type="button" onClick={handleSaveVoiceSelection}>Start Call</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
       <SidebarInset>
         <header className="p-4 border-b flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-sm z-10">
           <div className="flex items-center gap-2">
@@ -465,7 +527,7 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
                 variant="ghost" 
                 size="icon" 
                 onClick={handleToggleCall}
-                className={cn(isCallActive && "text-red-500 hover:text-red-600")}
+                className={cn(isCallActive && "text-red-500 hover:text-red-600 bg-red-500/10")}
                 title="Start/End Live Call"
             >
                 <Phone className="h-5 w-5" />
@@ -500,11 +562,11 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
         <main className="flex-1 flex flex-col relative">
           {isCallActive && (
             <CallPanel 
-                isMuted={isRecording}
+                isMuted={!isRecording}
                 onToggleMute={onToggleRecording}
                 onToggleSpeaker={onVoiceResponsesChange}
                 isSpeakerOn={voiceResponses}
-                onEndCall={handleToggleCall}
+                onEndCall={onToggleCall}
             />
           )}
           {mainContent}
@@ -524,12 +586,21 @@ type HariumAiLayoutProps = {
 };
 
 export function HariumAiLayout({ children, model, onModelChange, chatMode, onChatModeChange }: HariumAiLayoutProps) {
-    const [voiceResponses, setVoiceResponses] = React.useState(false);
+    const [voiceResponses, setVoiceResponses] = React.useState(true); // Default to on
     const [isRecording, setIsRecording] = React.useState(false);
+    const [isCallActive, setIsCallActive] = React.useState(false);
 
-    // This function will be passed down to ChatPanel and called from there
     const handleToggleRecording = () => {
         setIsRecording(prev => !prev);
+    };
+
+    const handleToggleCall = () => {
+        const newCallState = !isCallActive;
+        setIsCallActive(newCallState);
+        setVoiceResponses(newCallState); // Voice must be on for a call
+        if (!newCallState && isRecording) {
+            setIsRecording(false); // Stop recording if call ends
+        }
     };
 
     return (
@@ -543,6 +614,8 @@ export function HariumAiLayout({ children, model, onModelChange, chatMode, onCha
                 onVoiceResponsesChange={setVoiceResponses}
                 isRecording={isRecording}
                 onToggleRecording={handleToggleRecording}
+                isCallActive={isCallActive}
+                onToggleCall={handleToggleCall}
             >
                 {children}
             </HariumAiLayoutClient>

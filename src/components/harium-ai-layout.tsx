@@ -37,6 +37,7 @@ import {
   MoreVertical,
   Search,
   BrainCircuit,
+  Clapperboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -198,6 +199,14 @@ function HariumAiLayoutClient({ children, model, onModelChange, chatMode, onChat
                     <SidebarMenuButton isActive={pathname === '/generation/image'}>
                       <ImageIcon />
                       Image Generation
+                    </SidebarMenuButton>
+                  </Link>
+              </SidebarMenuItem>
+               <SidebarMenuItem>
+                 <Link href="/generation/video" className="w-full">
+                    <SidebarMenuButton isActive={pathname === '/generation/video'}>
+                      <Clapperboard />
+                      Video Generation
                     </SidebarMenuButton>
                   </Link>
               </SidebarMenuItem>

@@ -48,6 +48,9 @@ export function LoginPage() {
         email: email,
       });
 
+      // Sign out the user immediately after registration
+      await auth.signOut();
+
       toast({
         title: 'Account Created!',
         description: 'A verification link has been sent to your email. Please verify before signing in.',

@@ -49,10 +49,10 @@ type ChatPanelProps = {
     model?: string;
     chatMode: ChatMode;
     onChatModeChange: (mode: ChatMode) => void;
-    isCallActive: boolean;
-    voiceResponses: boolean;
-    isRecording: boolean;
-    onToggleRecording: () => void;
+    isCallActive?: boolean;
+    voiceResponses?: boolean;
+    isRecording?: boolean;
+    onToggleRecording?: () => void;
 }
 
 const CodeBlock = ({ code }: { code: string }) => {
@@ -92,7 +92,7 @@ const Typewriter = ({ text, onComplete }: { text: string; onComplete?: () => voi
     let i = 0;
     const intervalId = setInterval(() => {
       if (i < text.length) {
-          setDisplayedText((prev) => prev + text[i]);
+          setDisplayedText(text.slice(0, i + 1));
           i++;
       } else {
         clearInterval(intervalId);
@@ -436,9 +436,21 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       type: 'text',
       attachment: attachment || undefined,
     };
-    
+
     setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
+    
+    // Add a placeholder "thinking" message
+    const placeholderId = `asst-loading-${Date.now()}`;
+    const placeholderMessage: Message = {
+        id: placeholderId,
+        role: 'assistant',
+        content: 'Thinking...',
+        type: 'text',
+    };
+    setMessages(prev => [...prev, placeholderMessage]);
+    
+    setIsLoading(true); // Keep loading state for UI control
+
     if (!promptOverride) {
       setInput('');
       setAttachment(null);
@@ -471,8 +483,9 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         window.dispatchEvent(new Event('chat-updated'));
       }
       
-      setMessages((prev) => [...prev, assistantMessage]);
-      
+      // Replace the placeholder with the actual message
+      setMessages((prev) => prev.map(msg => msg.id === placeholderId ? assistantMessage : msg));
+
       if (isCallActive && voiceResponses && result.responseType === 'text') {
         await handlePlayAudio(assistantMessage.id, result.response);
       }
@@ -485,7 +498,8 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         content: 'Sorry, I ran into an error. Please try again.',
         type: 'text',
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      // Replace the placeholder with the error message
+      setMessages((prev) => prev.map(msg => msg.id === placeholderId ? errorMessage : msg));
     } finally {
       setIsLoading(false);
     }
@@ -561,7 +575,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
   const handleMicClick = () => {
     if (isRecording) {
       recognitionRef.current?.stop();
-      onToggleRecording();
+      if(onToggleRecording) onToggleRecording();
       return;
     } 
     
@@ -578,18 +592,18 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         recognitionRef.current.lang = 'en-US';
 
         recognitionRef.current.onstart = () => {
-            onToggleRecording(); 
+            if(onToggleRecording) onToggleRecording(); 
         };
 
         recognitionRef.current.onend = () => {
-            if(isRecording) { // Only toggle if it was recording, prevents flicker on manual stop
+            if(isRecording && onToggleRecording) {
               onToggleRecording();
             }
         };
 
         recognitionRef.current.onerror = (event: any) => {
             toast({ variant: "destructive", title: "Speech Recognition Error", description: event.error });
-            if(isRecording) {
+            if(isRecording && onToggleRecording) {
               onToggleRecording();
             }
         };
@@ -671,7 +685,13 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-2xl mx-auto py-8">
             {renderInitialScreen()}
-          {messages.map((message, index) => (
+          {messages.map((message, index) => {
+            // Don't render the placeholder message, the loading indicator below handles it.
+            if (message.id.startsWith('asst-loading-')) {
+                return null;
+            }
+
+            return (
             <div key={message.id}>
                 {message.type === 'harium-browser' ? (
                     <HariumBrowser 
@@ -732,7 +752,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                                     size="icon"
                                     className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                     onClick={() => handlePlayAudio(message.id, message.content)}
-                                    disabled={audioPlaying !== null && audioPlaying !== message.id || isCallActive}
+                                    disabled={(audioPlaying !== null && audioPlaying !== message.id) || isCallActive}
                                     title="Play audio"
                                 >
                                     {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
@@ -753,7 +773,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                                     size="icon"
                                     className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                     onClick={handleRegenerate}
-                                    disabled={isLoading || index !== messages.length -1}
+                                    disabled={isLoading || index !== messages.filter(m => !m.id.startsWith('asst-loading-')).length - 1}
                                     title="Regenerate response"
                                 >
                                     <RefreshCw className="h-4 w-4" />
@@ -770,7 +790,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                     </div>
                 )}
             </div>
-            ))}
+            )})}
             {isLoading && (
                 <div className="flex items-start gap-4">
                     <Avatar className="h-8 w-8 border-none bg-transparent">
@@ -871,5 +891,3 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     </div>
   );
 }
-
-    

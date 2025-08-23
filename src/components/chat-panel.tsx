@@ -107,12 +107,24 @@ const Typewriter = ({ text, onComplete }: { text: string; onComplete?: () => voi
     return () => clearInterval(intervalId);
   }, [text, onComplete]);
 
-  return (
-    <>
-      <MarkdownRenderer text={displayedText} />
-      {!isComplete && <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />}
-    </>
-  );
+  const renderTextWithCursor = () => {
+    const parts = displayedText.split(/(\`\`\`[\s\S]*?\`\`\`|\*\*.*?\*\*|_.*?_|> .*|Chohan Space)/gi).filter(Boolean);
+    const lastPart = parts[parts.length - 1];
+
+    // Don't add cursor if the text ends in a code block or is empty
+    if (!displayedText || (lastPart && lastPart.startsWith('```'))) {
+      return <MarkdownRenderer text={displayedText} />;
+    }
+
+    return (
+      <>
+        <MarkdownRenderer text={displayedText} />
+        {!isComplete && <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />}
+      </>
+    );
+  }
+
+  return renderTextWithCursor();
 };
 
 const MarkdownRenderer = ({ text }: { text: string }) => {
@@ -446,13 +458,17 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       type: 'text',
     };
   
-    setMessages((prev) => [...prev, userMessage, loadingMessage]);
+    setMessages((prev) => [...prev, userMessage]);
+    setIsLoading(true);
   
     if (!promptOverride) {
       setInput('');
       setAttachment(null);
     }
-    setIsLoading(true);
+
+    setTimeout(() => {
+        setMessages((prev) => [...prev, loadingMessage]);
+    }, 10);
   
     try {
       if (!user) {
@@ -680,7 +696,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelected} />
         
       <ScrollArea className="flex-1 pr-4 -mr-4">
-        <div className="space-y-6 max-w-xl mx-auto py-8">
+        <div className="space-y-6 max-w-2xl mx-auto py-8">
             {renderInitialScreen()}
           {messages.map((message) => {
               if (message.content === 'loading') {
@@ -809,7 +825,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         </div>
       </ScrollArea>
       <div className="border-t pt-4 bg-background">
-        <div className="max-w-xl mx-auto">
+        <div className="max-w-2xl mx-auto">
              {isRateLimited ? (
                  <div className="px-4 pb-2 text-center text-sm text-destructive">
                     You have reached your daily message limit. 
@@ -833,12 +849,12 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                         </div>
                     </div>
                 )}
-                <form onSubmit={handleSendMessage} className="relative flex items-center gap-2">
+                <form onSubmit={handleSendMessage} className="relative flex items-start gap-2">
                     <Textarea
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Send a message..."
-                        className="flex-1 resize-none rounded-full bg-secondary border-none pl-4 pr-12 py-3 min-h-0 h-12"
+                        className="flex-1 resize-none rounded-2xl bg-secondary border-none pl-4 pr-12 py-3 min-h-[52px]"
                         rows={1}
                         onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
@@ -848,7 +864,11 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                         }}
                         disabled={isLoading || !userId || preparingSearch}
                     />
-                    <div className="flex items-center">
+                    <div className="flex flex-col gap-1.5">
+                         <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isLoading || !input.trim()}>
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                            <span className="sr-only">Send</span>
+                        </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hidden sm:inline-flex" disabled={isLoading}>
@@ -872,10 +892,6 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                         </DropdownMenu>
                         <Button type="button" variant="ghost" size="icon" className={cn("h-8 w-8 text-muted-foreground", isRecording && 'text-red-500 animate-pulse')} disabled={isLoading} onClick={handleMicClick}>
                         {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                        </Button>
-                        <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isLoading || !input.trim()}>
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                            <span className="sr-only">Send</span>
                         </Button>
                     </div>
                 </form>

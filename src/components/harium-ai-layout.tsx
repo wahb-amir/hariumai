@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import * as React from "react";
@@ -416,7 +415,7 @@ function HariumAiLayoutClient({
                 <SidebarMenuItem>
                     <SidebarMenuButton>
                     <UserIcon />
-                    <span className="truncate">{user.email || user.phoneNumber}</span>
+                    <span className="truncate">{user.displayName || user.email}</span>
                     </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>

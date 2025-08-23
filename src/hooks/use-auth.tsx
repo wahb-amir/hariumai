@@ -2,12 +2,11 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { getAuth, onAuthStateChanged, User, isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { app } from '@/lib/firebase';
 import { useToast } from './use-toast';
 import { useRouter, usePathname } from 'next/navigation';
 import FullscreenLoader from '@/components/harium-ai-loader';
-import { cn } from '@/lib/utils';
 
 interface AuthContextType {
   user: User | null;
@@ -20,7 +19,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isUnlocking, setIsUnlocking] = useState(false);
-  const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -31,6 +29,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
     const auth = getAuth(app);
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user && !user.emailVerified && pathname !== '/login') {
+         // This case is handled on the login page now.
+         // We can add a check here if we want to redirect unverified users from protected pages.
+      }
       setUser(user);
       setLoading(false);
       
@@ -44,27 +46,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     });
 
-    if (isSignInWithEmailLink(auth, window.location.href)) {
-      let email = window.localStorage.getItem('emailForSignIn');
-      if (!email) {
-        email = window.prompt('Please provide your email for confirmation');
-      }
-      if(email) {
-          signInWithEmailLink(auth, email, window.location.href)
-            .then((result) => {
-              setUser(result.user);
-              window.localStorage.removeItem('emailForSignIn');
-              toast({ title: 'Success!', description: 'You have been signed in.' });
-              router.replace('/');
-            })
-            .catch((error) => {
-              toast({ variant: 'destructive', title: 'Error', description: 'Invalid sign-in link.' });
-            });
-      }
-    }
-
     return () => unsubscribe();
-  }, [toast, router, pathname]);
+  }, [router, pathname]);
 
   useEffect(() => {
     if (!loading) {

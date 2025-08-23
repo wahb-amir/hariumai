@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Volume2, Send, Loader2, Mic, MicOff, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit, Globe, File, Link2, X, Square } from "lucide-react";
+import { Bot, User, Volume2, Send, Loader2, Mic, MicOff, Paperclip, ImageIcon, Copy, RefreshCw, MoreVertical, Search, MessageSquare, BrainCircuit, Globe, File, Link2, X, Square, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { converseWithAi } from "@/ai/flows/generate-conversation";
 import { convertTextToSpeech } from "@/ai/flows/convert-text-to-speech";
@@ -243,6 +243,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isRateLimited, setIsRateLimited] = useState(false);
   const [audioPlaying, setAudioPlaying] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [preparingSearch, setPreparingSearch] = useState(false);
@@ -255,6 +256,8 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
   const { user, loading: authLoading } = useAuth();
   
   const [currentSessionId, setCurrentSessionId] = useState(chatId || uuidv4());
+
+  const ANONYMOUS_MESSAGE_LIMIT = 12;
 
   useEffect(() => {
     // This key is used to force a re-render of the panel when the chat ID changes.
@@ -279,14 +282,43 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
 
   useEffect(() => {
     if (!authLoading) {
-        let currentUserId = user?.uid;
-        if (!currentUserId) {
-            currentUserId = localStorage.getItem('anonymous_user_id') || uuidv4();
-            localStorage.setItem('anonymous_user_id', currentUserId);
+        if (user?.uid) {
+            setUserId(user.uid);
+            setIsRateLimited(false); // User is logged in, not rate limited
+        } else {
+            const anonymousId = localStorage.getItem('anonymous_user_id') || uuidv4();
+            localStorage.setItem('anonymous_user_id', anonymousId);
+            setUserId(anonymousId);
+            checkRateLimit(anonymousId); // Check rate limit for anonymous user
         }
-        setUserId(currentUserId);
     }
   }, [user, authLoading]);
+
+  const checkRateLimit = (anonId: string) => {
+    const rateLimitData = JSON.parse(localStorage.getItem(`rate_limit_${anonId}`) || '{}');
+    const today = new Date().toISOString().split('T')[0];
+    if (rateLimitData.date === today && rateLimitData.count >= ANONYMOUS_MESSAGE_LIMIT) {
+        setIsRateLimited(true);
+    } else {
+        setIsRateLimited(false);
+    }
+  };
+
+  const updateRateLimit = (anonId: string) => {
+    const rateLimitData = JSON.parse(localStorage.getItem(`rate_limit_${anonId}`) || '{}');
+    const today = new Date().toISOString().split('T')[0];
+
+    if (rateLimitData.date === today) {
+        rateLimitData.count += 1;
+    } else {
+        rateLimitData.date = today;
+        rateLimitData.count = 1;
+    }
+
+    localStorage.setItem(`rate_limit_${anonId}`, JSON.stringify(rateLimitData));
+    checkRateLimit(anonId);
+  };
+
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -386,6 +418,18 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     e.preventDefault();
     const currentInput = promptOverride || input;
     if (!currentInput.trim() || !userId) return;
+
+    if (!user) { // Anonymous user check
+        checkRateLimit(userId);
+        if (isRateLimited) {
+            toast({
+                variant: 'destructive',
+                title: 'Daily Limit Reached',
+                description: 'Please log in to continue chatting.',
+            });
+            return;
+        }
+    }
   
     const isNewChat = !chatId;
     const userMessage: Message = {
@@ -396,7 +440,6 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       attachment: attachment || undefined,
     };
   
-    // Add user message and a placeholder for the assistant's response
     const assistantPlaceholderId = `asst-placeholder-${Date.now()}`;
     setMessages((prev) => [...prev, userMessage, { id: assistantPlaceholderId, role: 'assistant', content: '', type: 'text' }]);
   
@@ -407,6 +450,10 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     setIsLoading(true);
   
     try {
+        if (!user) {
+            updateRateLimit(userId);
+        }
+
       const result = await converseWithAi({
         prompt: currentInput,
         sessionId: currentSessionId,
@@ -429,7 +476,6 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         window.dispatchEvent(new Event('chat-updated'));
       }
       
-      // Replace the placeholder with the actual message
       setMessages((prev) => prev.map(msg => msg.id === assistantPlaceholderId ? assistantMessage : msg));
       
       if (isCallActive && voiceResponses && result.responseType === 'text') {
@@ -680,11 +726,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                                             </div>
                                         )}
                                         <div className="text-sm leading-relaxed break-words">
-                                          {message.role === 'assistant' && !message.content.startsWith('data:image') ? (
-                                              <Typewriter text={message.content} />
-                                          ) : (
-                                              <MarkdownRenderer text={message.content} />
-                                          )}
+                                            <Typewriter text={message.content} onComplete={() => setIsLoading(false)} />
                                         </div>
                                     </>
                                 )}
@@ -696,7 +738,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                                             size="icon"
                                             className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                             onClick={() => handlePlayAudio(message.id, message.content)}
-                                            disabled={audioPlaying !== null && audioPlaying !== message.id}
+                                            disabled={audioPlaying !== null && audioPlaying !== message.id || isCallActive}
                                             title="Play audio"
                                         >
                                             {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
@@ -736,7 +778,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                     </div>
                 )
                 ))}
-           {isLoading && (
+           {isLoading && messages.at(-1)?.id.startsWith('asst-placeholder-') && (
                 <div className="flex items-start gap-4">
                     <Avatar className="h-8 w-8 border-none bg-transparent">
                         <AvatarFallback className="bg-transparent text-transparent">
@@ -760,69 +802,79 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       </ScrollArea>
       <div className="border-t pt-4 bg-background">
         <div className="max-w-2xl mx-auto">
-             {attachment && (
-                <div className="px-4 pb-2">
-                    <div className="flex items-center gap-2 p-2 rounded-md bg-secondary text-sm">
-                        <ImageIcon className="h-5 w-5" />
-                        <span className="font-medium truncate">{attachment.name}</span>
-                        <span className="text-muted-foreground text-xs">({Math.round(attachment.size / 1024)} KB)</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => setAttachment(null)}>
-                            <X className="h-4 w-4" />
-                            <span className="sr-only">Remove attachment</span>
+             {isRateLimited ? (
+                 <div className="px-4 pb-2 text-center text-sm text-destructive">
+                    You have reached your daily message limit. 
+                    <Link href="/login" className="font-bold underline ml-1">
+                        Please log in
+                    </Link> 
+                    {' '}to continue.
+                 </div>
+             ) : (
+                <>
+                {attachment && (
+                    <div className="px-4 pb-2">
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-secondary text-sm">
+                            <ImageIcon className="h-5 w-5" />
+                            <span className="font-medium truncate">{attachment.name}</span>
+                            <span className="text-muted-foreground text-xs">({Math.round(attachment.size / 1024)} KB)</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto" onClick={() => setAttachment(null)}>
+                                <X className="h-4 w-4" />
+                                <span className="sr-only">Remove attachment</span>
+                            </Button>
+                        </div>
+                    </div>
+                )}
+                <form onSubmit={handleSendMessage} className="relative">
+                    <Textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder="Send a message..."
+                        className="flex-1 resize-none rounded-full bg-secondary border-none pl-4 pr-24 sm:pr-32 py-3 min-h-0 h-12"
+                        rows={1}
+                        onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(e);
+                        }
+                        }}
+                        disabled={isLoading || !userId || preparingSearch}
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hidden sm:inline-flex" disabled={isLoading}>
+                                    <Paperclip className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => handleAttachment('gallery')}>
+                                    <ImageIcon className="mr-2 h-4 w-4" />
+                                    <span>Gallery</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onSelect={() => handleAttachment('files')}>
+                                    <File className="mr-2 h-4 w-4" />
+                                    <span>Files</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem disabled>
+                                    <Link2 className="mr-2 h-4 w-4" />
+                                    <span>Attach URL (in testing)</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button type="button" variant="ghost" size="icon" className={cn("h-8 w-8 text-muted-foreground", isRecording && 'text-red-500 animate-pulse')} disabled={isLoading} onClick={handleMicClick}>
+                        {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                        </Button>
+                        <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isLoading || !input.trim()}>
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                            <span className="sr-only">Send</span>
                         </Button>
                     </div>
-                </div>
-            )}
-            <form onSubmit={handleSendMessage} className="relative">
-                <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Send a message..."
-                    className="flex-1 resize-none rounded-full bg-secondary border-none pl-4 pr-24 sm:pr-32 py-3 min-h-0 h-12"
-                    rows={1}
-                    onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage(e);
-                    }
-                    }}
-                    disabled={isLoading || !userId || preparingSearch}
-                />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hidden sm:inline-flex" disabled={isLoading}>
-                                <Paperclip className="h-4 w-4" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => handleAttachment('gallery')}>
-                                <ImageIcon className="mr-2 h-4 w-4" />
-                                <span>Gallery</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => handleAttachment('files')}>
-                                <File className="mr-2 h-4 w-4" />
-                                <span>Files</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem disabled>
-                                <Link2 className="mr-2 h-4 w-4" />
-                                <span>Attach URL (in testing)</span>
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                    <Button type="button" variant="ghost" size="icon" className={cn("h-8 w-8 text-muted-foreground", isRecording && 'text-red-500 animate-pulse')} disabled={isLoading} onClick={handleMicClick}>
-                       {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                    </Button>
-                    <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isLoading || !input.trim()}>
-                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                        <span className="sr-only">Send</span>
-                    </Button>
-                </div>
-            </form>
+                </form>
+                </>
+             )}
         </div>
       </div>
     </div>
   );
 }
-
-    

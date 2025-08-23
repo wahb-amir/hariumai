@@ -84,9 +84,9 @@ type HariumAiLayoutClientProps = {
 const voices = [
     { id: 'Algenib', name: 'Algenib (Female)' },
     { id: 'Achernar', name: 'Achernar (Male)' },
-    { id: 'Polaris', name: 'Polaris (Female)' },
-    { id: 'Antares', name: 'Antares (Male)' },
-    { id: 'Spica', name: 'Spica (Female)' },
+    { id: 'Umbriel', name: 'Umbriel (Female)' },
+    { id: 'Gacrux', name: 'Gacrux (Male)' },
+    { id: 'Leda', name: 'Leda (Female)' },
 ];
 
 

@@ -110,7 +110,7 @@ const Typewriter = ({ text, onComplete }: { text: string; onComplete?: () => voi
   return (
     <>
       <MarkdownRenderer text={displayedText} />
-      {!isComplete && <span className="inline-block animate-pulse">●</span>}
+      {!isComplete && <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />}
     </>
   );
 };
@@ -201,7 +201,7 @@ function HariumBrowser({ query, answer }: { query: string, answer?: string }) {
                     <HariumLogo className="h-8 w-8" />
                 </AvatarFallback>
             </Avatar>
-            <div className="w-full max-w-2xl rounded-lg bg-card border shadow-sm animate-in fade-in-50">
+            <div className="w-full max-w-xl rounded-lg bg-card border shadow-sm animate-in fade-in-50">
                 <div className="h-9 flex items-center px-3 border-b">
                     <div className="flex items-center gap-1.5">
                         <div className="h-2.5 w-2.5 rounded-full bg-red-500"></div>
@@ -365,8 +365,6 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       audioRef.current.pause();
       setAudioPlaying(null);
     }
-    // In a real streaming scenario, you'd abort the fetch controller here.
-    // For now, we just stop visual/audio feedback.
     setIsLoading(false);
   };
 
@@ -391,7 +389,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         setAudioPlaying(null);
         audioRef.current = null;
         if (isCallActive) {
-            handleMicClick(); // Re-enable listening after AI finishes speaking
+            handleMicClick();
         }
       };
       audio.onerror = () => {
@@ -418,7 +416,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     e.preventDefault();
     const currentInput = promptOverride || input;
     if (!currentInput.trim() || !userId) return;
-
+  
     if (!user) { // Anonymous user check
         checkRateLimit(userId);
         if (isRateLimited) {
@@ -440,7 +438,15 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       attachment: attachment || undefined,
     };
   
-    setMessages((prev) => [...prev, userMessage]);
+    // Create a temporary loading message
+    const loadingMessage: Message = {
+      id: `asst-loading-${Date.now()}`,
+      role: 'assistant',
+      content: 'loading', // Special content to identify this message
+      type: 'text',
+    };
+  
+    setMessages((prev) => [...prev, userMessage, loadingMessage]);
   
     if (!promptOverride) {
       setInput('');
@@ -449,10 +455,10 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     setIsLoading(true);
   
     try {
-        if (!user) {
-            updateRateLimit(userId);
-        }
-
+      if (!user) {
+          updateRateLimit(userId);
+      }
+  
       const result = await converseWithAi({
         prompt: currentInput,
         sessionId: currentSessionId,
@@ -475,7 +481,8 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         window.dispatchEvent(new Event('chat-updated'));
       }
       
-      setMessages((prev) => [...prev, assistantMessage]);
+      // Replace the loading message with the actual response
+      setMessages((prev) => prev.map(msg => msg.id === loadingMessage.id ? assistantMessage : msg));
       
       if (isCallActive && voiceResponses && result.responseType === 'text') {
         await handlePlayAudio(assistantMessage.id, result.response);
@@ -489,12 +496,12 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         content: 'Sorry, I ran into an error. Please try again.',
         type: 'text',
       };
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => prev.map(msg => msg.id === loadingMessage.id ? errorMessage : msg));
     } finally {
       setIsLoading(false);
     }
   };
-
+  
   const handleRegenerate = () => {
     if (messages.length < 1 || isLoading) return;
     const lastUserMessage = messages.filter(m => m.role === 'user').at(-1);
@@ -673,9 +680,32 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileSelected} />
         
       <ScrollArea className="flex-1 pr-4 -mr-4">
-        <div className="space-y-6 max-w-2xl mx-auto py-8">
+        <div className="space-y-6 max-w-xl mx-auto py-8">
             {renderInitialScreen()}
-          {messages.map((message) => (
+          {messages.map((message) => {
+              if (message.content === 'loading') {
+                return (
+                  <div key={message.id} className="flex items-start gap-4">
+                    <Avatar className="h-8 w-8 border-none bg-transparent">
+                        <AvatarFallback className="bg-transparent text-transparent">
+                            <HariumLogo className="h-8 w-8" />
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
+                        {chatMode === 'deep-research' ? <BrainCircuit className="h-5 w-5 animate-spin" /> : <Loader2 className="h-5 w-5 animate-spin" />}
+                        <span className="text-sm text-muted-foreground">
+                            {chatMode === 'deep-research' ? 'Performing deep research...' : 'HariumAI is thinking...'}
+                        </span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={stopAllProcesses}>
+                            <Square className="h-4 w-4" />
+                            <span className="sr-only">Stop</span>
+                        </Button>
+                    </div>
+                  </div>
+                );
+              }
+
+              return (
                 <div key={message.id}>
                     {message.type === 'harium-browser' ? (
                         <HariumBrowser 
@@ -724,7 +754,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                                         </div>
                                     )}
                                     <div className="text-sm leading-relaxed break-words">
-                                        <MarkdownRenderer text={message.content} />
+                                      <Typewriter text={message.content} />
                                     </div>
                                 </>
                             )}
@@ -774,31 +804,12 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                         </div>
                     )}
                 </div>
-            ))}
-           {isLoading && (
-                <div className="flex items-start gap-4">
-                    <Avatar className="h-8 w-8 border-none bg-transparent">
-                        <AvatarFallback className="bg-transparent text-transparent">
-                            <HariumLogo className="h-8 w-8" />
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="bg-card rounded-lg p-3 flex items-center space-x-2">
-                        {chatMode === 'deep-research' ? <BrainCircuit className="h-5 w-5 animate-spin" /> : <Loader2 className="h-5 w-5 animate-spin" />}
-                        <span className="text-sm text-muted-foreground">
-                            {chatMode === 'deep-research' ? 'Performing deep research...' : 'HariumAI is thinking...'}
-                        </span>
-                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={stopAllProcesses}>
-                            <Square className="h-4 w-4" />
-                            <span className="sr-only">Stop</span>
-                        </Button>
-                    </div>
-                </div>
-          )}
+            )})}
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
       <div className="border-t pt-4 bg-background">
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-xl mx-auto">
              {isRateLimited ? (
                  <div className="px-4 pb-2 text-center text-sm text-destructive">
                     You have reached your daily message limit. 
@@ -875,5 +886,3 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     </div>
   );
 }
-
-    

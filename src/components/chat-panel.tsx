@@ -86,45 +86,32 @@ const CodeBlock = ({ code }: { code: string }) => {
 
 const Typewriter = ({ text, onComplete }: { text: string; onComplete?: () => void }) => {
   const [displayedText, setDisplayedText] = useState("");
-  const [isComplete, setIsComplete] = useState(false);
-
+  
   useEffect(() => {
     setDisplayedText("");
-    setIsComplete(false);
     let i = 0;
     const intervalId = setInterval(() => {
       if (i < text.length) {
-          setDisplayedText(text.slice(0, i + 1));
+          setDisplayedText((prev) => prev + text[i]);
           i++;
       } else {
         clearInterval(intervalId);
-        setIsComplete(true);
         if (onComplete) {
           onComplete();
         }
       }
-    }, 20); // Adjust speed as needed
+    }, 20);
     return () => clearInterval(intervalId);
   }, [text, onComplete]);
 
-  const renderTextWithCursor = () => {
-    const parts = displayedText.split(/(\`\`\`[\s\S]*?\`\`\`|\*\*.*?\*\*|_.*?_|> .*|Chohan Space)/gi).filter(Boolean);
-    const lastPart = parts[parts.length - 1];
+  const isComplete = displayedText.length === text.length;
 
-    // Don't add cursor if the text ends in a code block or is empty
-    if (!displayedText || (lastPart && lastPart.startsWith('```'))) {
-      return <MarkdownRenderer text={displayedText} />;
-    }
-
-    return (
-      <>
-        <MarkdownRenderer text={displayedText} />
-        {!isComplete && <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />}
-      </>
-    );
-  }
-
-  return renderTextWithCursor();
+  return (
+    <>
+      <MarkdownRenderer text={displayedText} />
+      {!isComplete && <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />}
+    </>
+  );
 };
 
 const MarkdownRenderer = ({ text }: { text: string }) => {
@@ -428,7 +415,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     e.preventDefault();
     const currentInput = promptOverride || input;
     if (!currentInput.trim() || !userId) return;
-  
+
     if (!user) { // Anonymous user check
         checkRateLimit(userId);
         if (isRateLimited) {
@@ -440,7 +427,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
             return;
         }
     }
-  
+
     const isNewChat = !chatId;
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -449,27 +436,14 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       type: 'text',
       attachment: attachment || undefined,
     };
-  
-    // Create a temporary loading message
-    const loadingMessage: Message = {
-      id: `asst-loading-${Date.now()}`,
-      role: 'assistant',
-      content: 'loading', // Special content to identify this message
-      type: 'text',
-    };
-  
+    
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
-  
     if (!promptOverride) {
       setInput('');
       setAttachment(null);
     }
-
-    setTimeout(() => {
-        setMessages((prev) => [...prev, loadingMessage]);
-    }, 10);
-  
+    
     try {
       if (!user) {
           updateRateLimit(userId);
@@ -497,8 +471,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         window.dispatchEvent(new Event('chat-updated'));
       }
       
-      // Replace the loading message with the actual response
-      setMessages((prev) => prev.map(msg => msg.id === loadingMessage.id ? assistantMessage : msg));
+      setMessages((prev) => [...prev, assistantMessage]);
       
       if (isCallActive && voiceResponses && result.responseType === 'text') {
         await handlePlayAudio(assistantMessage.id, result.response);
@@ -512,7 +485,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
         content: 'Sorry, I ran into an error. Please try again.',
         type: 'text',
       };
-      setMessages((prev) => prev.map(msg => msg.id === loadingMessage.id ? errorMessage : msg));
+      setMessages((prev) => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -698,10 +671,108 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
       <ScrollArea className="flex-1 pr-4 -mr-4">
         <div className="space-y-6 max-w-2xl mx-auto py-8">
             {renderInitialScreen()}
-          {messages.map((message) => {
-              if (message.content === 'loading') {
-                return (
-                  <div key={message.id} className="flex items-start gap-4">
+          {messages.map((message, index) => (
+            <div key={message.id}>
+                {message.type === 'harium-browser' ? (
+                    <HariumBrowser 
+                        query={messages.find(m => m.role === 'user' && m.id.startsWith('user-'))?.content || ''} 
+                        answer={!isLoading ? message.content : undefined} 
+                    />
+                ) : (
+                    <div className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
+                    {message.role === "assistant" && (
+                        <Avatar className="h-8 w-8 border-none bg-transparent">
+                        <AvatarFallback className="bg-transparent text-transparent">
+                            <HariumLogo className="h-8 w-8" />
+                        </AvatarFallback>
+                        </Avatar>
+                    )}
+                    <div
+                        className={cn(
+                        "max-w-[75%] rounded-lg p-3",
+                        message.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-card"
+                        )}
+                    >
+                        {message.type === 'image' ? (
+                        <Image
+                                src={message.content}
+                                alt="Generated image"
+                                width={512}
+                                height={512}
+                                className="rounded-lg"
+                                data-ai-hint="generated image"
+                            />
+                        ) : (
+                            <>
+                                {message.attachment && (
+                                    <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
+                                        {message.attachment.type.startsWith('image/') ? (
+                                            <Image src={message.attachment.dataUrl} alt={message.attachment.name} width={48} height={48} className="rounded-md" />
+                                        ) : (
+                                            <File className="h-6 w-6" />
+                                        )}
+                                        <div className="text-sm">
+                                            <p className="font-semibold">{message.attachment.name}</p>
+                                            <p className="text-xs">{Math.round(message.attachment.size / 1024)} KB</p>
+                                        </div>
+                                    </div>
+                                )}
+                                <div className="text-sm leading-relaxed break-words">
+                                    <Typewriter text={message.content} />
+                                </div>
+                            </>
+                        )}
+                        
+                        {message.role === 'assistant' && !isLoading && (
+                            <div className="mt-2 flex items-center gap-2">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handlePlayAudio(message.id, message.content)}
+                                    disabled={audioPlaying !== null && audioPlaying !== message.id || isCallActive}
+                                    title="Play audio"
+                                >
+                                    {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
+                                    <span className="sr-only">Play audio</span>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    onClick={() => handleCopy(message.content)}
+                                    title="Copy response"
+                                >
+                                    <Copy className="h-4 w-4" />
+                                    <span className="sr-only">Copy response</span>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                    onClick={handleRegenerate}
+                                    disabled={isLoading || index !== messages.length -1}
+                                    title="Regenerate response"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                    <span className="sr-only">Regenerate response</span>
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                    {message.role === "user" && (
+                        <Avatar className="h-8 w-8 border bg-background">
+                            <AvatarFallback className="bg-primary text-primary-foreground"><User className="h-5 w-5" /></AvatarFallback>
+                        </Avatar>
+                    )}
+                    </div>
+                )}
+            </div>
+            ))}
+            {isLoading && (
+                <div className="flex items-start gap-4">
                     <Avatar className="h-8 w-8 border-none bg-transparent">
                         <AvatarFallback className="bg-transparent text-transparent">
                             <HariumLogo className="h-8 w-8" />
@@ -717,110 +788,8 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                             <span className="sr-only">Stop</span>
                         </Button>
                     </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={message.id}>
-                    {message.type === 'harium-browser' ? (
-                        <HariumBrowser 
-                            query={messages.find(m => m.role === 'user' && m.id.startsWith('user-'))?.content || ''} 
-                            answer={!isLoading ? message.content : undefined} 
-                        />
-                    ) : (
-                        <div className={cn("flex items-start gap-4", message.role === "user" && "justify-end")}>
-                        {message.role === "assistant" && (
-                            <Avatar className="h-8 w-8 border-none bg-transparent">
-                            <AvatarFallback className="bg-transparent text-transparent">
-                                <HariumLogo className="h-8 w-8" />
-                            </AvatarFallback>
-                            </Avatar>
-                        )}
-                        <div
-                            className={cn(
-                            "max-w-[75%] rounded-lg p-3",
-                            message.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-card"
-                            )}
-                        >
-                            {message.type === 'image' ? (
-                            <Image
-                                    src={message.content}
-                                    alt="Generated image"
-                                    width={512}
-                                    height={512}
-                                    className="rounded-lg"
-                                    data-ai-hint="generated image"
-                                />
-                            ) : (
-                                <>
-                                    {message.attachment && (
-                                        <div className="flex items-center gap-2 p-2 rounded-md bg-background/50 mb-2">
-                                            {message.attachment.type.startsWith('image/') ? (
-                                                <Image src={message.attachment.dataUrl} alt={message.attachment.name} width={48} height={48} className="rounded-md" />
-                                            ) : (
-                                                <File className="h-6 w-6" />
-                                            )}
-                                            <div className="text-sm">
-                                                <p className="font-semibold">{message.attachment.name}</p>
-                                                <p className="text-xs">{Math.round(message.attachment.size / 1024)} KB</p>
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div className="text-sm leading-relaxed break-words">
-                                      <Typewriter text={message.content} />
-                                    </div>
-                                </>
-                            )}
-                            
-                            {message.role === 'assistant' && !isLoading && (
-                                <div className="mt-2 flex items-center gap-2">
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                        onClick={() => handlePlayAudio(message.id, message.content)}
-                                        disabled={audioPlaying !== null && audioPlaying !== message.id || isCallActive}
-                                        title="Play audio"
-                                    >
-                                        {audioPlaying === message.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Volume2 className="h-4 w-4" />}
-                                        <span className="sr-only">Play audio</span>
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                        onClick={() => handleCopy(message.content)}
-                                        title="Copy response"
-                                    >
-                                        <Copy className="h-4 w-4" />
-                                        <span className="sr-only">Copy response</span>
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                        onClick={handleRegenerate}
-                                        disabled={isLoading}
-                                        title="Regenerate response"
-                                    >
-                                        <RefreshCw className="h-4 w-4" />
-                                        <span className="sr-only">Regenerate response</span>
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                        {message.role === "user" && (
-                            <Avatar className="h-8 w-8 border bg-background">
-                                <AvatarFallback className="bg-primary text-primary-foreground"><User className="h-5 w-5" /></AvatarFallback>
-                            </Avatar>
-                        )}
-                        </div>
-                    )}
                 </div>
-            )})}
+            )}
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
@@ -854,7 +823,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Send a message..."
-                        className="flex-1 resize-none rounded-2xl bg-secondary border-none pl-4 pr-12 py-3 min-h-[52px]"
+                        className="flex-1 resize-none rounded-2xl bg-secondary border-none pl-4 pr-12 py-2.5 min-h-[40px]"
                         rows={1}
                         onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
@@ -864,7 +833,7 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
                         }}
                         disabled={isLoading || !userId || preparingSearch}
                     />
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1.5">
                          <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isLoading || !input.trim()}>
                             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                             <span className="sr-only">Send</span>
@@ -902,3 +871,5 @@ export function ChatPanel({ chatId, model, chatMode, onChatModeChange, voiceResp
     </div>
   );
 }
+
+    

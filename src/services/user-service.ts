@@ -33,6 +33,9 @@ export type User = {
     name: string;
     email: string;
     createdAt?: Date;
+    isVerified?: boolean;
+    otp?: string;
+    otpExpires?: Date;
 }
 
 export async function createUser(user: Omit<User, 'createdAt'>): Promise<User> {
@@ -46,7 +49,11 @@ export async function createUser(user: Omit<User, 'createdAt'>): Promise<User> {
     return JSON.parse(JSON.stringify(existingUser));
   }
 
-  const newUser = { ...user, createdAt: new Date() };
+  const newUser = { 
+    ...user,
+    isVerified: false,
+    createdAt: new Date(),
+  };
   await collection.insertOne(newUser);
   // Return the newly created user as a plain object
   return JSON.parse(JSON.stringify(newUser));
@@ -60,4 +67,26 @@ export async function getUser(userId: string): Promise<User | null> {
         return null;
     }
     return JSON.parse(JSON.stringify(userDoc));
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+    const database = await connectToDb();
+    const collection = database.collection('users');
+    const userDoc = await collection.findOne({ email });
+    if (!userDoc) {
+        return null;
+    }
+    return JSON.parse(JSON.stringify(userDoc));
+}
+
+export async function saveOtp(email: string, otp: string, expires: Date) {
+    const database = await connectToDb();
+    const collection = database.collection('users');
+    return await collection.updateOne({ email }, { $set: { otp, otpExpires: expires }});
+}
+
+export async function verifyUser(email: string) {
+    const database = await connectToDb();
+    const collection = database.collection('users');
+    return await collection.updateOne({ email }, { $set: { isVerified: true, otp: undefined, otpExpires: undefined } });
 }

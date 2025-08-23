@@ -7,6 +7,7 @@ import { app } from '@/lib/firebase';
 import { useToast } from './use-toast';
 import { useRouter, usePathname } from 'next/navigation';
 import FullscreenLoader from '@/components/harium-ai-loader';
+import { getUser } from '@/services/user-service';
 
 interface AuthContextType {
   user: User | null;
@@ -28,22 +29,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
     }
     const auth = getAuth(app);
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user && !user.emailVerified && pathname !== '/login') {
-         // This case is handled on the login page now.
-         // We can add a check here if we want to redirect unverified users from protected pages.
-      }
-      setUser(user);
-      setLoading(false);
-      
-      // When user logs in, remove anonymous id, redirect and reload sessions.
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // User is signed in with Firebase, now check if they are verified in our DB
+        const dbUser = await getUser(firebaseUser.uid);
+        // The new OTP flow doesn't require email verification check here
+        // as verification happens during the login/signup flow itself.
+        setUser(firebaseUser);
+
+        // When user logs in, remove anonymous id, redirect and reload sessions.
         localStorage.removeItem('anonymous_user_id');
         window.dispatchEvent(new Event('chat-updated'));
         if (pathname === '/login') {
             router.replace('/');
         }
+
+      } else {
+        setUser(null);
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();

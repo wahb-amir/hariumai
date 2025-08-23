@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   createUserWithEmailAndPassword,
-  sendEmailVerification,
   signInWithEmailAndPassword,
   updateProfile
 } from 'firebase/auth';
@@ -25,13 +24,17 @@ import { HariumLogo } from './harium-logo';
 import Link from 'next/link';
 import { createUser } from '@/services/user-service';
 import { Loader2 } from 'lucide-react';
+import { sendOtp } from '@/ai/flows/send-otp';
+import { verifyOtp } from '@/ai/flows/verify-otp';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false);
+  const [currentView, setCurrentView] = useState<'auth' | 'otp'>('auth');
+  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const { toast } = useToast();
   const router = useRouter();
 
@@ -41,21 +44,21 @@ export function LoginPage() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(userCredential.user, { displayName: name });
-      await sendEmailVerification(userCredential.user);
+      
       await createUser({
         userId: userCredential.user.uid,
         name: name,
         email: email,
       });
 
-      // Sign out the user immediately after registration
-      await auth.signOut();
+      await sendOtp({ email });
 
       toast({
         title: 'Account Created!',
-        description: 'A verification link has been sent to your email. Please verify before signing in.',
+        description: 'An OTP has been sent to your email. Please verify to continue.',
       });
-      setVerificationSent(true);
+      setCurrentView('otp');
+      setAuthMode('signup');
     } catch (error: any) {
       console.error(error);
       let errorMessage = 'An unexpected error occurred.';
@@ -73,37 +76,180 @@ export function LoginPage() {
       setIsLoading(false);
     }
   };
-
-  const handleSignIn = async (e: React.FormEvent) => {
+  
+  const handleRequestOtpForSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      if (!userCredential.user.emailVerified) {
+        await sendOtp({ email });
         toast({
-          variant: 'destructive',
-          title: 'Email Not Verified',
-          description: 'Please verify your email before signing in. You can request a new verification email.',
+            title: 'OTP Sent',
+            description: 'A one-time password has been sent to your email.',
         });
-        await auth.signOut(); // Sign out the user until they verify
-      } else {
+        setCurrentView('otp');
+        setAuthMode('signin');
+    } catch (error: any) {
+        console.error('Error requesting OTP', error);
         toast({
-          title: 'Signed In!',
-          description: 'Welcome back!',
+            variant: 'destructive',
+            title: 'Sign In Failed',
+            description: error.message || 'Could not send OTP. Please check the email and try again.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }
+
+
+  const handleVerifyOtpAndSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const { success } = await verifyOtp({ email, otp });
+      if (success) {
+        // OTP is verified, now we need to sign the user in with Firebase
+        await signInWithEmailAndPassword(auth, email, password);
+        toast({
+            title: 'Signed In!',
+            description: 'Welcome to Harium AI!',
         });
         router.push('/');
+      } else {
+        throw new Error('Invalid OTP. Please try again.');
       }
     } catch (error: any) {
-      console.error(error);
-      toast({
-        variant: 'destructive',
-        title: 'Sign In Failed',
-        description: 'Invalid email or password. Please try again.',
-      });
+        console.error(error);
+        toast({
+            variant: 'destructive',
+            title: 'Sign In Failed',
+            description: error.message || 'An error occurred during verification.',
+        });
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
+
+  const handleVerifyOtpForSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+        const { success } = await verifyOtp({ email, otp });
+        if (success) {
+             toast({
+                title: 'Email Verified!',
+                description: 'Your account is verified. You can now sign in.',
+            });
+            // Sign out the user, force them to the sign-in tab
+            await auth.signOut();
+            setCurrentView('auth');
+            // We can't programmatically switch tabs, but we can reset state
+            // so the user sees the sign-in screen.
+            setEmail('');
+            setPassword('');
+        } else {
+            throw new Error('Invalid OTP. Please try again.');
+        }
+    } catch (error: any) {
+         console.error(error);
+        toast({
+            variant: 'destructive',
+            title: 'Verification Failed',
+            description: error.message || 'An error occurred during verification.',
+        });
+    } finally {
+        setIsLoading(false);
+    }
+  }
+
+  const renderAuthView = () => (
+    <Tabs defaultValue="signin" onValueChange={(val) => { setEmail(''); setPassword(''); setName('');}}>
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="signin">Sign In</TabsTrigger>
+        <TabsTrigger value="signup">Create Account</TabsTrigger>
+      </TabsList>
+      <TabsContent value="signin">
+        <form onSubmit={handleRequestOtpForSignIn} className="space-y-4 pt-4">
+          <Input
+            type="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={isLoading}
+          />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={isLoading}
+          />
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Sign In with OTP
+          </Button>
+        </form>
+      </TabsContent>
+      <TabsContent value="signup">
+        <form onSubmit={handleSignUp} className="space-y-4 pt-4">
+          <Input
+            type="text"
+            placeholder="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            disabled={isLoading}
+          />
+          <Input
+            type="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={isLoading}
+          />
+          <Input
+            type="password"
+            placeholder="Password (min. 6 characters)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            disabled={isLoading}
+          />
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Create Account
+          </Button>
+        </form>
+      </TabsContent>
+    </Tabs>
+  );
+
+  const renderOtpView = () => (
+     <div className="text-center p-8">
+        <h3 className="text-lg font-semibold mb-2">Check your inbox!</h3>
+        <p className="text-muted-foreground mb-4">
+            An OTP has been sent to <strong>{email}</strong>. Enter it below to continue.
+        </p>
+        <form onSubmit={authMode === 'signin' ? handleVerifyOtpAndSignIn : handleVerifyOtpForSignUp} className="space-y-4">
+             <Input
+                type="text"
+                placeholder="Enter OTP"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                required
+                disabled={isLoading}
+                className="text-center"
+            />
+             <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Verify and {authMode === 'signin' ? 'Sign In' : 'Complete Registration'}
+            </Button>
+        </form>
+        <Button variant="link" onClick={() => setCurrentView('auth')} className="mt-4">Back to Sign In</Button>
+    </div>
+  )
 
 
   return (
@@ -116,82 +262,11 @@ export function LoginPage() {
             </Link>
           <CardTitle>Welcome</CardTitle>
           <CardDescription>
-            Sign in or create an account to continue.
+            {currentView === 'auth' ? 'Sign in or create an account to continue.' : 'Please verify your email to proceed.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {verificationSent ? (
-             <div className="text-center p-8">
-                <h3 className="text-lg font-semibold mb-2">Check your inbox!</h3>
-                <p className="text-muted-foreground">
-                  A verification link has been sent to <strong>{email}</strong>. Click the link to verify your account, then you can sign in.
-                </p>
-                <Button onClick={() => setVerificationSent(false)} className="mt-4">Back to Sign In</Button>
-            </div>
-          ) : (
-            <Tabs defaultValue="signin">
-                <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Create Account</TabsTrigger>
-                </TabsList>
-                <TabsContent value="signin">
-                    <form onSubmit={handleSignIn} className="space-y-4 pt-4">
-                    <Input
-                        type="email"
-                        placeholder="name@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                        disabled={isLoading}
-                    />
-                    <Input
-                        type="password"
-                        placeholder="Password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        disabled={isLoading}
-                    />
-                    <Button type="submit" className="w-full" disabled={isLoading}>
-                        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Sign In
-                    </Button>
-                    </form>
-                </TabsContent>
-                <TabsContent value="signup">
-                    <form onSubmit={handleSignUp} className="space-y-4 pt-4">
-                        <Input
-                            type="text"
-                            placeholder="Name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
-                        <Input
-                            type="email"
-                            placeholder="name@example.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
-                        <Input
-                            type="password"
-                            placeholder="Password (min. 6 characters)"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={isLoading}
-                        />
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Create Account
-                        </Button>
-                    </form>
-                </TabsContent>
-            </Tabs>
-          )}
+            {currentView === 'auth' ? renderAuthView() : renderOtpView()}
         </CardContent>
       </Card>
     </div>

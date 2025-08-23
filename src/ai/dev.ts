@@ -12,5 +12,7 @@ import '@/ai/flows/rename-chat-session.ts';
 import '@/ai/flows/delete-chat-session.ts';
 import '@/ai/flows/delete-all-chat-sessions.ts';
 import '@/ai/tools/google-search-tool.ts';
+import '@/ai/flows/send-otp.ts';
+import '@/ai/flows/verify-otp.ts';
 
 

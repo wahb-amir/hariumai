@@ -38,6 +38,7 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
   .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
@@ -72,14 +73,14 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 240 4.9% 83.9%;
   }
-}
 
-@layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
+
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
   }
 }
 
@@ -101,14 +102,18 @@
   }
 
   @keyframes loader-fade-out {
-    from { opacity: 1; }
-    to { opacity: 0; }
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
   }
 
   .animate-loader-fade-out {
     animation: loader-fade-out 0.5s ease-out forwards;
   }
-  
+
   @keyframes app-fade-in-up {
     from {
       opacity: 0;
@@ -122,7 +127,7 @@
 
   .animate-app-fade-in-up {
     animation: app-fade-in-up 0.8s ease-out forwards;
-    animation-delay: 0.2s; /* Start after loader starts fading */
-    opacity: 0; /* Start invisible */
+    animation-delay: 0.2s;
+    opacity: 0;
   }
 }
